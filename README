@@ -1,0 +1,25 @@
+TraktForVLC
+
+This is very much an alpha test for scrobbling VLC content to Trakt. Since VLC has no idea what you are watching the script will attempt to figure out if you are watching a TV show or a Movie based on the name of the video, and it's lenght for movies. So, the script can only work well if your files are named properly.
+
+This script is based off of the TraktForBoxee script and works very similarily to it.
+
+I have not tested running the script as a daemon, and the code is not setup to loop forever. If you want the script to run indefinately swap the comments in the TraktForVLC.run function and it will run until you kill the command.
+
+Installation:
+Install Python 2.7.2 if you don't have it installed already
+
+Setup VLC (ver.2)
+- Click Tools > Preferences
+- Click on "All" under Show Settings in the sidebar
+- Go to Interface > Main Interfaces
+- Click "Remote control interface"
+- Go to Interface > Main Interfaces > RC
+- Check "Do not open a DOS command box interface"
+- Input "localhost:4222" into the "TCP command input" box
+- Click Save to apply settings
+
+Setup config.ini
+- Set the IP and Port that you entered into VLC. If you entered the above ip and port in VLC then the default are fine.
+- Set your Trakt username and password
+
