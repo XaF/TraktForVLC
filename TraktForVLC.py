@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python
 # encoding: utf-8
 
@@ -43,7 +42,7 @@ class TraktForVLC(object):
     self.vlc_ip = self.config.get("VLC", "IP")
     self.vlc_port = self.config.getint("VLC", "Port")
 
-    trakt_api = "f46fbebb833fbeb8196b69e0e8d5de8f852b7ea6"
+    trakt_api = "128ecd4886c86eabe4ef13675ad10495c916381a"
     trakt_username = self.config.get("Trakt", "Username")
     trakt_password = self.config.get("Trakt", "Password")
 
