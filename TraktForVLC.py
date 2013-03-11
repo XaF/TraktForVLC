@@ -12,17 +12,21 @@ import time
 import re
 import os
 import getopt
+import datetime
 from tvrage import api
 from tvrage import feeds
 
 VERSION = "0.1"
 VLC_VERSION = VLC_DATE = ""
 TIMER_INTERVAL = 10
+DATETIME = datetime.datetime.now()
 
 class TraktForVLC(object):
 
   def __init__(self, datadir, configfile):
-    logfile = datadir + "/TraktForVLC.log"
+
+    # Process log file name
+    logfile = datadir + "/TraktForVLC-" + DATETIME.strftime("%Y%m%d%H%M") + ".log"    
         
     logging.basicConfig(format="%(asctime)s::%(name)s::%(levelname)s::%(message)s",
                             level=logging.DEBUG,
@@ -42,9 +46,13 @@ class TraktForVLC(object):
     self.vlc_ip = self.config.get("VLC", "IP")
     self.vlc_port = self.config.getint("VLC", "Port")
 
+    self.log.info("Listening vlc(" + self.vlc_ip + ", " + str(self.vlc_port) + ")")
+
     trakt_api = "128ecd4886c86eabe4ef13675ad10495c916381a"
     trakt_username = self.config.get("Trakt", "Username")
     trakt_password = self.config.get("Trakt", "Password")
+
+    self.log.info("Connect to Trakt trakt(" + trakt_username + ", " + trakt_password + ")")
 
     self.trakt_client = TraktClient.TraktClient(trakt_api,
                                                 trakt_username,
@@ -55,13 +63,13 @@ class TraktForVLC(object):
     self.timer = 0
 
   def run(self):
-    #while (True):
-    #  self.timer += TIMER_INTERVAL
-    #  try:
-    #      self.main()
-    #  except Exception, e:
-    #      self.log.warning("An unknown error occurred.")
-    #  time.sleep(TIMER_INTERVAL)
+    while (True):
+      self.timer += TIMER_INTERVAL
+      try:
+          self.main()
+      except Exception, e:
+          self.log.warning("An unknown error occurred : " + str(e))
+      time.sleep(TIMER_INTERVAL)
     self.main()
     
   def main(self):
@@ -73,13 +81,11 @@ class TraktForVLC(object):
       return
       
     vlcStatus = vlc.get_status()
-    if vlcStatus:
+
+    if vlcStatus:      
       video = self.get_TV(vlc)
-      self.log.debug(video)
       if video is None:
         video = self.get_Movie(vlc)
-        self.log.debug(video)
-
       if (video["percentage"] >= 90
           and not self.scrobbled):
               self.log.info("Scrobbling to Trakt")
