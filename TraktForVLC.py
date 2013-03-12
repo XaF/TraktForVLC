@@ -17,8 +17,8 @@ from tvrage import api
 from tvrage import feeds
 
 VERSION = "0.1"
-VLC_VERSION = VLC_DATE = ""
-TIMER_INTERVAL = 10
+VLC_VERSION = VLC_DATE  = ""
+TIMER_INTERVAL = 0
 DATETIME = datetime.datetime.now()
 
 class TraktForVLC(object):
@@ -26,7 +26,7 @@ class TraktForVLC(object):
   def __init__(self, datadir, configfile):
 
     # Process log file name
-    logfile = datadir + "/TraktForVLC-" + DATETIME.strftime("%Y%m%d%H%M") + ".log"    
+    logfile = datadir + "/TraktForVLC-" + DATETIME.strftime("%Y%m%d%H") + ".log"    
         
     logging.basicConfig(format="%(asctime)s::%(name)s::%(levelname)s::%(message)s",
                             level=logging.DEBUG,
@@ -34,8 +34,10 @@ class TraktForVLC(object):
                             stream=sys.stdout)
 
     self.log = logging.getLogger("TraktForVLC")
-    self.log.info("Initialized Trakt for VLC.")
-        
+    self.log.info("----------------------------------------------------------------------------")
+    self.log.info("TraktForVLC v" + VERSION + " by Wifsimster")
+    self.log.info("Initializing Trakt for VLC...")
+    
     if not os.path.isfile(configfile):
       self.log.error("Config file " + configfile + " not found, exiting.")
       exit()
@@ -43,16 +45,19 @@ class TraktForVLC(object):
     self.config = ConfigParser.RawConfigParser()
     self.config.read(configfile)
 
+    TIMER_INTERVAL = int(self.config.get("TraktForVLC", "Timer"))
+    self.log.info("Timer set to " + str(TIMER_INTERVAL))
+
     self.vlc_ip = self.config.get("VLC", "IP")
     self.vlc_port = self.config.getint("VLC", "Port")
 
-    self.log.info("Listening vlc(" + self.vlc_ip + ", " + str(self.vlc_port) + ")")
+    self.log.info("Listening VLC to " + self.vlc_ip + ":" + str(self.vlc_port))
 
     trakt_api = "128ecd4886c86eabe4ef13675ad10495c916381a"
     trakt_username = self.config.get("Trakt", "Username")
     trakt_password = self.config.get("Trakt", "Password")
 
-    self.log.info("Connect to Trakt trakt(" + trakt_username + ", " + trakt_password + ")")
+    self.log.info("Connect to Trakt(" + trakt_username + ", " + trakt_password + ")")
 
     self.trakt_client = TraktClient.TraktClient(trakt_api,
                                                 trakt_username,
