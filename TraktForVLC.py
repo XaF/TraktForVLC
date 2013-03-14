@@ -78,11 +78,11 @@ class TraktForVLC(object):
     self.main()
     
   def main(self):
-    #--extraintf=rc --rc-host=127.0.0.1:4222 --rc-quiet
     try:
       vlc = VLCRemote(self.vlc_ip, self.vlc_port)
     except:
       self.log.debug('Could not find VLC running at ' + str(self.vlc_ip) + ':'+ str(self.vlc_port))
+      self.log.debug('Make sure your VLC player is running with --extraintf=rc --rc-host='+ self.vlc_ip +':' + self.vlc_port + ' --rc-quiet')
       return
       
     vlcStatus = vlc.get_status()
