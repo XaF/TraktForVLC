@@ -19,6 +19,7 @@ from tvrage import feeds
 VERSION = "0.1"
 VLC_VERSION = VLC_DATE  = ""
 TIMER_INTERVAL = 0
+START_WATCHING_TIMER = 60
 DATETIME = datetime.datetime.now()
 
 class TraktForVLC(object):
@@ -26,16 +27,17 @@ class TraktForVLC(object):
   def __init__(self, datadir, configfile):
 
     # Process log file name
-    logfile = datadir + "/TraktForVLC-" + DATETIME.strftime("%Y%m%d%H") + ".log"    
+    logfile = datadir + "/TraktForVLC-" + DATETIME.strftime("%m-%d-%y-%H-%M") + ".log"    
         
     logging.basicConfig(format="%(asctime)s::%(name)s::%(levelname)s::%(message)s",
-                            level=logging.DEBUG,
+                            level=logging.INFO,
                             filename=logfile,
                             stream=sys.stdout)
 
     self.log = logging.getLogger("TraktForVLC")
     self.log.info("----------------------------------------------------------------------------")
-    self.log.info("TraktForVLC v" + VERSION + " by Wifsimster")
+    self.log.info("                   TraktForVLC v" + VERSION + " by Wifsimster")
+    self.log.info("----------------------------------------------------------------------------")
     self.log.info("Initializing Trakt for VLC...")
     
     if not os.path.isfile(configfile):
@@ -45,8 +47,8 @@ class TraktForVLC(object):
     self.config = ConfigParser.RawConfigParser()
     self.config.read(configfile)
 
-    TIMER_INTERVAL = int(self.config.get("TraktForVLC", "Timer"))
-    self.log.info("Timer set to " + str(TIMER_INTERVAL))
+    self.log.info("Timer set to " + str(self.config.get("TraktForVLC", "Timer")) + " secs")
+    self.log.info("Video will be marked as \"is watching\" from " + str(START_WATCHING_TIMER) + " secs")
 
     self.vlc_ip = self.config.get("VLC", "IP")
     self.vlc_port = self.config.getint("VLC", "Port")
@@ -68,13 +70,16 @@ class TraktForVLC(object):
     self.timer = 0
 
   def run(self):
+
+    TIMER_INTERVAL = int(self.config.get("TraktForVLC", "Timer"))
+
     while (True):
       self.timer += TIMER_INTERVAL
       try:
           self.main()
       except Exception, e:
           self.log.warning("An unknown error occurred : " + str(e))
-      time.sleep(TIMER_INTERVAL)
+      time.sleep(float(TIMER_INTERVAL))
     self.main()
     
   def main(self):
@@ -82,19 +87,26 @@ class TraktForVLC(object):
       vlc = VLCRemote(self.vlc_ip, self.vlc_port)
     except:
       self.log.debug('Could not find VLC running at ' + str(self.vlc_ip) + ':'+ str(self.vlc_port))
-      self.log.debug('Make sure your VLC player is running with --extraintf=rc --rc-host='+ self.vlc_ip +':' + self.vlc_port + ' --rc-quiet')
+      self.log.debug('Make sure your VLC player is running with --extraintf=rc --rc-host='+ str(self.vlc_ip) +':' + str(self.vlc_port) + ' --rc-quiet')
       return
       
     vlcStatus = vlc.get_status()
 
-    if vlcStatus:      
+    if vlcStatus:
+
       video = self.get_TV(vlc)
+
       if video is None:
         video = self.get_Movie(vlc)
+
+      self.log.info("----------------------------------------------------------------------------");
+      self.log.info("                             Timer : " + str(self.timer))
+      self.log.info("----------------------------------------------------------------------------");
+      self.log.info("Video state : " + str(video["percentage"]) + "%");
+
       if (video["percentage"] >= 90
           and not self.scrobbled):
-              self.log.info("Scrobbling to Trakt")
-              
+              self.log.info("Scrobbling "+ video["title"] + " to Trakt...")              
               try:
                   self.trakt_client.update_media_status(video["title"],
                                                         video["year"],
@@ -108,6 +120,7 @@ class TraktForVLC(object):
                                                         season=video["season"],
                                                         episode=video["episode"])
                   self.scrobbled = True
+                  self.log.info(video["title"] + " scrobbled to Trakt !")  
               except TraktClient.TraktError, (e):
                   self.log.error("An error occurred while trying to scrobble: " + e.msg)
                   if ("scrobbled" in e.msg and "already" in e.msg):
@@ -116,7 +129,7 @@ class TraktForVLC(object):
               
       elif (video["percentage"] < 90
             and not self.scrobbled
-            and self.timer >= 900):
+            and self.timer >= START_WATCHING_TIMER):
           self.log.info("Watching on Trakt")
           self.timer = 0
       
@@ -135,8 +148,6 @@ class TraktForVLC(object):
           except TraktClient.TraktError, (e):
               self.timer = 870
               self.log.error("An error occurred while trying to mark watching: " + e.msg)
-          
-      self.log.debug("Timer: " + str(self.timer))
 
   def get_TV(self, vlc):
     try:
