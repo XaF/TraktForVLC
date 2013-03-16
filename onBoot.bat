@@ -1,0 +1,1 @@
+start "TraktForVLC" pythonw C:\Users\Wifsimster\Downloads\TraktForVLC\TraktForVLC.py --datadir C:\Users\Wifsimster\Downloads\TraktForVLC --config C:\Users\Wifsimster\Downloads\TraktForVLC
