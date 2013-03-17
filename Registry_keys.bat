@@ -1,8 +1,18 @@
+:: -----------------------------------------------------------------------------------
+:: Title : Trakt for VLC batch file
+:: Contact : wifsimster@gmail.com
+:: Last update : 03/17/2013
+:: Description : Edit registry keys for VLC. Add needed options to launch extraintf.
+:: -----------------------------------------------------------------------------------
 @echo off
 
+:: ----------------------------------------------
+:: You can edit these data as you want
 set ip=192.168.137.1
 set port=4222
 set formats=avi, mkv, mov, mp4, wmv, ts, mpg
+:: ----------------------------------------------
+
 set vlcPath=C:\Program Files (x86)\VideoLAN\VLC\vlc.exe\
 set vlcExtraIntf=--extraintf=rc --rc-host="%ip%":"%port%" --rc-quiet
 
