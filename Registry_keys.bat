@@ -8,7 +8,7 @@
 
 :: ----------------------------------------------
 :: You can edit these data as you want
-set ip=192.168.137.1
+set ip=localhost
 set port=4222
 set formats=avi, mkv, mov, mp4, wmv, ts, mpg
 :: ----------------------------------------------
