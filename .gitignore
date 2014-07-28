@@ -132,6 +132,7 @@ Desktop.ini
 #############
 
 *.py[co]
+*.pyo
 
 # Packages
 *.egg
@@ -161,3 +162,7 @@ pip-log.txt
 
 # Mac crap
 .DS_Store
+
+# Own files
+requests/packages/config.ini
+requests/packages/logs/
