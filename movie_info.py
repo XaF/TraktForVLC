@@ -26,6 +26,8 @@ def get_and_clean_data(tag, data):
         data = re.sub(r':\\"+','',temp_data).replace('\\"','')
     except IndexError,e:
         print "Error Occured! %s" %e
+        import traceback # For debugging purposes
+        traceback.print_exc()
         return ""	
     return data	
 
