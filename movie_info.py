@@ -6,14 +6,27 @@ import json
 BASE_URL = 'http://www.imdbapi.com/?'
 #NAME_LIST = file('movies.txt','r')
 
-def get_movie_info(movi_name):
-    query = {'i': '', 't': movi_name ,'tomatoes':'true'}
+def get_movie_info(movi_name, movi_year = ''):
+    query = {
+            'i': '',
+            't': movi_name,
+            'y': movi_year,
+            'tomatoes':'true'
+        }
     part = urllib.urlencode(query)
     url = BASE_URL+part
     response = requests.get(url)
     output  = json.dumps(response.content, separators=(',',':'))
     movie_info = {}
-    info_list = ['Plot','Title','Director','tomatoRating', 'imdbRating', 'Runtime']
+    info_list = [
+            'Plot',
+            'Title',
+            'Director',
+            'tomatoRating',
+            'imdbRating',
+            'Runtime',
+            'Year'
+        ]
     for info in info_list:
         if info == 'imdbRating':
             movie_info['IMDB Rating'] = get_and_clean_data(info, output)
