@@ -68,7 +68,7 @@ class TraktForVLC(object):
       self.log.info("Logger level is set to DEBUG");
     else:
       self.TIMER_INTERVAL = int(self.config.get("TraktForVLC", "Timer"))
-      self.START_WATCHING_TIMER = 30
+      self.START_WATCHING_TIMER = int(self.config.get("TraktForVLC", "StartWatching"))
       self.log.info("Logger level is set to INFO");
     
     self.log.info("-- Timer set to " + str(self.TIMER_INTERVAL) + " secs")
