@@ -191,6 +191,8 @@ class TraktForVLC(object):
               self.timer = 870
               self.log.error("An error occurred while trying to mark watching " + logtitle + " : " + e.msg)
 
+    vlc.close()
+
   def get_TV(self, vlc):
     try:
       now_playing = vlc.get_title("^(?!status change:)(?P<SeriesName>.+?)(?:[[(]?(?P<Year>[0-9]{4})[])]?.*)? *S?(?P<SeasonNumber>[0-9]+)(?:[ .XE]?(?P<EpisodeNumber>[0-9]{1,3})).*\.[a-z]{2,4}")

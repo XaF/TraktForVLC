@@ -117,3 +117,5 @@ class VLCRemote(object):
       time = time.groupdict()['time']
       return time
 
+    def close(self):
+      self.cnx.close()
