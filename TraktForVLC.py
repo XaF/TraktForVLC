@@ -16,7 +16,7 @@ import datetime
 from tvrage import api
 from tvrage import feeds
 
-VERSION = "0.2"
+VERSION = "0.3"
 VLC_VERSION = VLC_DATE  = ""
 TIMER_INTERVAL = START_WATCHING_TIMER = 0
 
@@ -49,11 +49,11 @@ class TraktForVLC(object):
 
     self.log = logging.getLogger("TraktForVLC")
     self.log.info("----------------------------------------------------------------------------")
-    self.log.info("                        TraktForVLC v" + VERSION + " by Wifsimster")
-    self.log.info("                           Last update : 03/17/2013")
-    self.log.info("                        contact : wifsimster@gmail.com")
+    self.log.info("                        TraktForVLC v" + VERSION + " by XaF")
+    self.log.info("                           Last update : 07/28/2014")
+    self.log.info("                        contact : raphael.beamonte@gmail.com")
     self.log.info("              Description : Allow scrobbling VLC content to Trakt")
-    self.log.info("          Download : https://github.com/Wifsimster/TraktForVLC.git")
+    self.log.info("          Download : https://github.com/XaF/TraktForVLC.git")
     self.log.info("----------------------------------------------------------------------------")
     self.log.info("Initializing Trakt for VLC...")
 
