@@ -168,7 +168,7 @@ class TraktForVLC(object):
 
       elif (video["percentage"] < 90
             and not self.scrobbled
-            and self.timer >= self.START_WATCHING_TIMER):
+            and (float(video["duration"]) * float(video["percentage"]) / 100.0) >= self.START_WATCHING_TIMER):
 
           # self.timer = 0
 
