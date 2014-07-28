@@ -25,47 +25,60 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-from util import _fetch
-from urllib2 import quote
-
-try:
-    import xml.etree.cElementTree as et
-except ImportError:
-    import xml.etree.ElementTree as et
+from urllib2 import urlopen, URLError
+from BeautifulSoup import BeautifulSoup
 
 
-BASE_URL = 'http://services.tvrage.com/feeds/%s.php?%s=%s'
+class TvrageError(Exception):
+    """ Base class for custom exceptions"""
+
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __str__(self):
+        return self.msg
 
 
-def _fetch_xml(url, node=None):
-    """fetches the response of a simple xml-based webservice. If node is
-    omitted the root of the parsed xml doc is returned as an ElementTree object
-    otherwise the requested node is returned"""
-    xmldoc = _fetch(url)
-    result = et.parse(xmldoc)
-    root = result.getroot()
-    if not node:
-        retval = root
+class TvrageRequestError(TvrageError):
+    """ Wrapper for HTTP 400 """
+    pass
+
+
+class TvrageNotFoundError(TvrageError):
+    """ Wrapper for HTTP 404"""
+    pass
+
+
+class TvrageInternalServerError(TvrageError):
+    """ Wrapper for HTTP 500"""
+    pass
+
+
+def _fetch(url):
+    try:
+        result = urlopen(url)
+    except URLError, e:
+        if 400 == e.code:
+            raise TvrageRequestError(str(e))
+        elif 404 == e.code:
+            raise TvrageNotFoundError(str(e))
+        elif 500 == e.code:
+            raise TvrageInternalServerError(str(e))
+        else:
+            raise TvrageError(str(e))
+    except Exception, e:
+        raise TvrageError(str(e))
     else:
-        retval = root.find(node)
-    return retval
+        return result
 
 
-def search(show, node=None):
-    return _fetch_xml(BASE_URL % ('search', 'show', quote(show)), node)
-
-
-def full_search(show, node=None):
-    return _fetch_xml(BASE_URL % ('full_search', 'show', quote(show)), node)
-
-
-def showinfo(sid, node=None):
-    return _fetch_xml(BASE_URL % ('showinfo', 'sid', sid), node)
-
-
-def episode_list(sid, node=None):
-    return _fetch_xml(BASE_URL % ('episode_list', 'sid', sid), node)
-
-
-def full_show_info(sid, node=None):
-    return _fetch_xml(BASE_URL % ('full_show_info', 'sid', sid), node)
+def parse_synopsis(page, cleanup=None):
+    soup = BeautifulSoup(page)
+    try:
+        result = soup.find('div', attrs={'class': 'show_synopsis'}).text
+        #cleaning up a litle bit
+        if cleanup:
+            result, _ = result.split(cleanup)
+        return result
+    except AttributeError, e:
+        print('parse_synopyis - BeautifulSoup.find(): %s' % e)

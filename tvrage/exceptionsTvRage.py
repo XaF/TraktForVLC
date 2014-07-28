@@ -1,4 +1,6 @@
-# Copyright (c) 2009, Christian Kreutzer
+#!/usr/bin/env python
+
+# Copyright (c) 2010, Christian Kreutzer
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,47 +27,27 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-from util import _fetch
-from urllib2 import quote
 
-try:
-    import xml.etree.cElementTree as et
-except ImportError:
-    import xml.etree.ElementTree as et
+class BaseError(Exception):
 
+    def __init__(self, value):
+        self.value = value
 
-BASE_URL = 'http://services.tvrage.com/feeds/%s.php?%s=%s'
+    def __str__(self):
+        return repr(self.value)
 
 
-def _fetch_xml(url, node=None):
-    """fetches the response of a simple xml-based webservice. If node is
-    omitted the root of the parsed xml doc is returned as an ElementTree object
-    otherwise the requested node is returned"""
-    xmldoc = _fetch(url)
-    result = et.parse(xmldoc)
-    root = result.getroot()
-    if not node:
-        retval = root
-    else:
-        retval = root.find(node)
-    return retval
+class ShowHasEnded(BaseError):
+    pass
 
 
-def search(show, node=None):
-    return _fetch_xml(BASE_URL % ('search', 'show', quote(show)), node)
+class NoNewEpisodesAnnounced(BaseError):
+    pass
 
 
-def full_search(show, node=None):
-    return _fetch_xml(BASE_URL % ('full_search', 'show', quote(show)), node)
+class FinaleMayNotBeAnnouncedYet(BaseError):
+    pass
 
 
-def showinfo(sid, node=None):
-    return _fetch_xml(BASE_URL % ('showinfo', 'sid', sid), node)
-
-
-def episode_list(sid, node=None):
-    return _fetch_xml(BASE_URL % ('episode_list', 'sid', sid), node)
-
-
-def full_show_info(sid, node=None):
-    return _fetch_xml(BASE_URL % ('full_show_info', 'sid', sid), node)
+class ShowNotFound(BaseError):
+    pass
