@@ -24,13 +24,16 @@ TIMER_INTERVAL = START_WATCHING_TIMER = 0
 DATETIME = datetime.datetime.now()
 
 # In DEBUG level, timers're forced to 5secs
-LOG_LEVEL = logging.INFO
+LOG_LEVEL = logging.DEBUG
+#LOG_LEVEL = logging.INFO
+#LOG_LEVEL = logging.WARNING
+#LOG_LEVEL = logging.ERROR
 
 class TraktForVLC(object):
 
   def __init__(self, datadir, configfile):
 
-    # Process log file name    
+    # Process log file name
     if LOG_LEVEL is logging.DEBUG:
       logfile = datadir + "/logs/TraktForVLC-DEBUG.log"
       # Remove existing DEBUG file
@@ -38,7 +41,7 @@ class TraktForVLC(object):
         os.remove(logfile)
     else:
       logfile = datadir + "/logs/TraktForVLC-" + DATETIME.strftime("%y-%m-%d-%H-%M") + ".log"
-        
+
     logging.basicConfig(format="%(asctime)s::%(name)s::%(levelname)s::%(message)s",
                             level=LOG_LEVEL,
                             filename=logfile,
@@ -53,7 +56,7 @@ class TraktForVLC(object):
     self.log.info("          Download : https://github.com/Wifsimster/TraktForVLC.git")
     self.log.info("----------------------------------------------------------------------------")
     self.log.info("Initializing Trakt for VLC...")
-    
+
     if not os.path.isfile(configfile):
       self.log.error("Config file " + configfile + " not found, exiting.")
       exit()
@@ -70,7 +73,7 @@ class TraktForVLC(object):
       self.TIMER_INTERVAL = int(self.config.get("TraktForVLC", "Timer"))
       self.START_WATCHING_TIMER = int(self.config.get("TraktForVLC", "StartWatching"))
       self.log.info("Logger level is set to INFO");
-    
+
     self.log.info("-- Timer set to " + str(self.TIMER_INTERVAL) + " secs")
     self.log.info("-- Video will be marked as \"is watching\" from " + str(self.START_WATCHING_TIMER) + " secs")
 
@@ -87,7 +90,7 @@ class TraktForVLC(object):
 
     self.log.info("Connect to Trakt(" + trakt_username + ", " + trakt_password + ")")
 
-    # Initialize Trakt client 
+    # Initialize Trakt client
     self.trakt_client = TraktClient.TraktClient(trakt_api,
                                                 trakt_username,
                                                 trakt_password)
@@ -96,7 +99,7 @@ class TraktForVLC(object):
     self.watching_now = ""
     self.timer = 0
 
-  def run(self):   
+  def run(self):
 
     while (True):
       self.timer += self.TIMER_INTERVAL
@@ -106,7 +109,7 @@ class TraktForVLC(object):
           self.log.error("An unknown error occurred : " + str(e))
       time.sleep(self.TIMER_INTERVAL)
     self.main()
-    
+
   def main(self):
     try:
       vlc = VLCRemote(self.vlc_ip, self.vlc_port)
@@ -114,7 +117,7 @@ class TraktForVLC(object):
       self.log.debug('Could not find VLC running at ' + str(self.vlc_ip) + ':'+ str(self.vlc_port))
       self.log.debug('Make sure your VLC player is running with --extraintf=rc --rc-host='+ str(self.vlc_ip) +':' + str(self.vlc_port) + ' --rc-quiet')
       return
-      
+
     vlcStatus = vlc.get_status()
 
     if vlcStatus:
@@ -152,7 +155,7 @@ class TraktForVLC(object):
                   if ("scrobbled" in e.msg and "already" in e.msg):
                       self.log.info("Seems we've already scrobbled this episode recently, aborting scrobble attempt.")
                       self.scrobbled = True
-              
+
       elif (video["percentage"] < 90
             and not self.scrobbled
             and self.timer >= self.START_WATCHING_TIMER):
@@ -185,9 +188,9 @@ class TraktForVLC(object):
       seriesYear = ifnull(now_playing.group('Year'),'1900')
       seasonNumber = ifnull(now_playing.group('SeasonNumber').lstrip('0'),'0')
       episodeNumber = ifnull(now_playing.group('EpisodeNumber').lstrip('0'),'0')
-      
+
       if self.valid_TV(seriesName):
-        series = api.Show(seriesName)        
+        series = api.Show(seriesName)
         duration = int(vlc.get_length())
         time = int(vlc.get_time())
         percentage = time*100/duration
@@ -196,10 +199,10 @@ class TraktForVLC(object):
           return self.set_video(True, seriesName, series.started, duration, percentage, seasonNumber, episodeNumber)
         except:
           self.log.warning("Episode : No valid episode found !")
-          return  
+          return
     except:
       self.log.warning("No matching tv show found for video playing")
-      return 
+      return
 
   def valid_TV(self, seriesName):
     try:
@@ -226,8 +229,8 @@ class TraktForVLC(object):
       return 
     except:
       self.log.debug("No matching movie found for video playing")
-      return 
-      
+      return
+
 
   def valid_Movie(self, vlcTitle, vlcDuration):
     try:
@@ -246,11 +249,11 @@ class TraktForVLC(object):
       self.log.debug("Valid_Movie -> no valid title found")
       return False
     return False
-      
+
   def set_video(self, tv, title, year, duration, percentage, season, episode):
     video = {}
     video["tv"] = tv
-    video["title"] = title 
+    video["title"] = title
     video["year"] = year
     video["duration"] = duration
     video["percentage"] = percentage
@@ -266,7 +269,7 @@ def daemonize(pidfile=""):
     Forks the process off to run as a daemon. Most of this code is from the
     sickbeard project.
     """
-    
+
     if (pidfile):
         if os.path.exists(pidfile):
             sys.exit("The pidfile " + pidfile + " already exists, Trakt for VLC may still be running.")
@@ -274,7 +277,7 @@ def daemonize(pidfile=""):
             file(pidfile, 'w').write("pid\n")
         except IOError, e:
             sys.exit("Unable to write PID file: %s [%d]" % (e.strerror, e.errno))
-            
+
     # Make a non-session-leader child process
     try:
         pid = os.fork() #@UndefinedVariable - only available in UNIX
@@ -301,7 +304,7 @@ def daemonize(pidfile=""):
 
     dev_null = file('/dev/null', 'r')
     os.dup2(dev_null.fileno(), sys.stdin.fileno())
-    
+
     if (pidfile):
         file(pidfile, "w").write("%s\n" % str(os.getpid()))
 
@@ -311,7 +314,7 @@ if __name__ == '__main__':
   datadir = sys.path[0]
   logfile = ""
   config = ""
-  
+
   try:
     opts, args = getopt.getopt(sys.argv[1:], "dp", ['daemon', 'pidfile=', 'datadir=', 'config=']) #@UnusedVariable
   except getopt.GetoptError:
@@ -325,15 +328,15 @@ if __name__ == '__main__':
         print "Daemonize not supported under Windows, starting normally"
       else:
         should_daemon = True
-                
+
     # Create pid file
     if o in ('--pidfile',):
       pidfile = str(a)
-        
+
     # Determine location of datadir
     if o in ('--datadir',):
       datadir = str(a)
-            
+
     # Determine location of config file
     if o in ('--config',):
       config = str(a)
@@ -342,7 +345,7 @@ if __name__ == '__main__':
     daemonize(pidfile)
   elif (pidfile):
     print "Pidilfe isn't useful when not running as a daemon, ignoring pidfile."
-    
+
   if config == "":
     config = sys.path[0]
   configfile = config + "/config.ini"
@@ -350,5 +353,5 @@ if __name__ == '__main__':
   client = TraktForVLC(datadir, configfile)
   client.run()
 
-  
+
 
