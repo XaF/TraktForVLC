@@ -83,39 +83,39 @@ class VLCRemote(object):
         self._command('next')
 
     def get_title(self, regex):
-      fn_re = re.compile(regex, re.IGNORECASE | re.MULTILINE)
-      title = self._command('get_title', fn_re, raw=True)
-      return title
+        fn_re = re.compile(regex, re.IGNORECASE | re.MULTILINE)
+        title = self._command('get_title', fn_re, raw=True)
+        return title
 
     def is_playing(self):
-      fn_re = re.compile('(?P<playing>.+)')
-      playing = self._command('is_playing', fn_re, raw=True)
-      playing = playing.groupdict()['playing']
-      return playing
+        fn_re = re.compile('(?P<playing>.+)')
+        playing = self._command('is_playing', fn_re, raw=True)
+        playing = playing.groupdict()['playing']
+        return playing
 
     def get_info(self):
-      fn_re = re.compile('(?P<info>.+)')
-      info = self._command('info', fn_re, raw=True)
-      info = info.groupdict()['info']
-      return info
+        fn_re = re.compile('(?P<info>.+)')
+        info = self._command('info', fn_re, raw=True)
+        info = info.groupdict()['info']
+        return info
 
     def get_status(self):
-      fn_re = re.compile('(?P<status>.+)')
-      status = self._command('status')
-      #status = status.groupdict()['status']
-      return status
+        fn_re = re.compile('(?P<status>.+)')
+        status = self._command('status')
+        #status = status.groupdict()['status']
+        return status
 
     def get_length(self):
-      fn_re = re.compile('(?P<length>[0-9]+)')
-      length = self._command('get_length',fn_re, raw=True)
-      length = length.groupdict()['length']
-      return length
+        fn_re = re.compile('(?P<length>[0-9]+)')
+        length = self._command('get_length',fn_re, raw=True)
+        length = length.groupdict()['length']
+        return length
 
     def get_time(self):
-      fn_re = re.compile('(?P<time>[0-9]+)')
-      time = self._command('get_time',fn_re, raw=True)
-      time = time.groupdict()['time']
-      return time
+        fn_re = re.compile('(?P<time>[0-9]+)')
+        time = self._command('get_time',fn_re, raw=True)
+        time = time.groupdict()['time']
+        return time
 
     def close(self):
-      self.cnx.close()
+        self.cnx.close()
