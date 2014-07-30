@@ -39,7 +39,9 @@ from tvrage import api as tvrage_api
 from tvrage import feeds as tvrage_feeds
 from filenameparser import parse_tv, parse_movie
 
-VERSION = "0.3"
+__version_info__ = (0, 0, 3, 'alpha', 0)
+__version__ = "%d.%d.%d %s" % __version_info__[:4]
+
 VLC_VERSION = VLC_DATE  = ""
 TIMER_INTERVAL = START_WATCHING_TIMER = 0
 
@@ -88,7 +90,7 @@ class TraktForVLC(object):
 
         self.log = logging.getLogger("TraktForVLC")
         self.log.info("----------------------------------------------------------------------------")
-        self.log.info("                        TraktForVLC v" + VERSION + " by XaF")
+        self.log.info("                        TraktForVLC v" + __version__ + " by XaF")
         self.log.info("                           Last update : 07/28/2014")
         self.log.info("                        contact : raphael.beamonte@gmail.com")
         self.log.info("              Description : Allow scrobbling VLC content to Trakt")
@@ -221,7 +223,7 @@ class TraktForVLC(object):
                                                         video["year"],
                                                         video["duration"],
                                                         video["percentage"],
-                                                        VERSION,
+                                                        __version__,
                                                         VLC_VERSION,
                                                         VLC_DATE,
                                                         tv=video["tv"],
@@ -250,7 +252,7 @@ class TraktForVLC(object):
                                                         video["year"],
                                                         video["duration"],
                                                         video["percentage"],
-                                                        VERSION,
+                                                        __version__,
                                                         VLC_VERSION,
                                                         VLC_DATE,
                                                         tv=video["tv"],
