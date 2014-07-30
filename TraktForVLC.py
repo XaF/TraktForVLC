@@ -46,11 +46,21 @@ TIMER_INTERVAL = START_WATCHING_TIMER = 0
 # Current date
 DATETIME = datetime.datetime.now()
 
+# Available log levels
+AVAILABLE_LOGLVL = [
+        (logging.NOTSET,    'NOTSET'),      # 0
+        (logging.DEBUG,     'DEBUG'),       # 10
+        (logging.INFO,      'INFO'),        # 20
+        (logging.WARNING,   'WARNING'),     # 30
+        (logging.ERROR,     'ERROR'),       # 40
+        (logging.CRITICAL,  'CRITICAL'),    # 50
+        ]
+
 # In DEBUG level, timers're forced to 5secs
-#LOG_LEVEL = logging.DEBUG
-LOG_LEVEL = logging.INFO
-#LOG_LEVEL = logging.WARNING
-#LOG_LEVEL = logging.ERROR
+LOG_LEVEL = logging.WARNING
+
+# Use small timers, useful in debug mode
+SMALL_TIMERS = False
 
 class TraktForVLC(object):
 
@@ -88,15 +98,21 @@ class TraktForVLC(object):
         self.config.read(configfile)
 
         # Initialize timers
-        if LOG_LEVEL is logging.DEBUG:
+        if SMALL_TIMERS:
             self.TIMER_INTERVAL = 5
             self.START_WATCHING_TIMER = 5
-            self.log.info("Logger level is set to DEBUG");
         else:
             self.TIMER_INTERVAL = int(self.config.get("TraktForVLC", "Timer"))
             self.START_WATCHING_TIMER = int(self.config.get("TraktForVLC", "StartWatching"))
-            self.log.info("Logger level is set to INFO");
 
+        for loglvl, logstr in AVAILABLE_LOGLVL:
+            if LOG_LEVEL <= loglvl:
+                loglevelstr = logstr
+                break
+        if loglevelstr is None:
+            loglevelstr = str(LOG_LEVEL)
+
+        self.log.info("Logger level is set to %s" % loglevelstr);
         self.log.info("-- Timer set to " + str(self.TIMER_INTERVAL) + " secs")
         self.log.info("-- Video will be marked as \"is watching\" from " + str(self.START_WATCHING_TIMER) + " secs")
 
@@ -250,7 +266,7 @@ class TraktForVLC(object):
                 now_playing = parse_tv(vlc.get_title("^(?!status change:)(.+?)\r?\n").group(1))
 
                 if not now_playing:
-                    self.log.warning("Not able to parse a tvshow from the title file")
+                    self.log.info("Not able to parse a tvshow from the title file")
                     return
 
                 seriesName = now_playing['show']
@@ -273,7 +289,7 @@ class TraktForVLC(object):
                     self.cache["series_info"] = None
                     return
         except:
-            self.log.warning("No matching tv show found for video playing")
+            self.log.info("No matching tv show found for video playing")
             return
 
     def valid_TV(self, seriesName):
@@ -306,7 +322,7 @@ class TraktForVLC(object):
 
             return
         except:
-            self.log.debug("No matching movie found for video playing")
+            self.log.info("No matching movie found for video playing")
             return
 
 
@@ -396,9 +412,24 @@ if __name__ == '__main__':
     config = ""
 
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "dp", ['daemon', 'pidfile=', 'datadir=', 'config=']) #@UnusedVariable
+        opts, args = getopt.getopt(sys.argv[1:], "dp", [
+            'config='
+            'daemon',
+            'datadir=',
+            'debug',
+            'pidfile=',
+            'smalltimers',
+            'loglevel=',
+            ])
     except getopt.GetoptError:
-        print "Available options: --daemon, --pidfile, --datadir, --config"
+        print "Available options:"
+        print '     --config=path           Path to config file'
+        print '     --daemon                Run as daemon'
+        print '     --datadir=path          Location of the app data (logs,...)'
+        print '     --debug                 Enter DEBUG mode'
+        print '     --pidfile=path          Indicate pidfile (for daemon mode)'
+        print '     --smalltimers           Activate small timers (for DEBUG mode)'
+        print '     --loglevel=lvl          Specify the log level'
         sys.exit()
 
     for o, a in opts:
@@ -410,16 +441,35 @@ if __name__ == '__main__':
                 should_daemon = True
 
         # Create pid file
-        if o in ('--pidfile',):
+        elif o in ('--pidfile',):
             pidfile = str(a)
 
         # Determine location of datadir
-        if o in ('--datadir',):
+        elif o in ('--datadir',):
             datadir = str(a)
 
         # Determine location of config file
-        if o in ('--config',):
+        elif o in ('--config',):
             config = str(a)
+
+        # DEBUG mode
+        elif o in ('--debug',):
+            LOG_LEVEL = logging.DEBUG
+
+        # Use small timers instead of those in the config file
+        elif o in ('--smalltimers',):
+            SMALL_TIMERS = True
+
+        # Specify log level
+        elif o in ('--loglevel',):
+            LOG_LEVEL = None
+            if a.isdigit():
+                LOG_LEVEL = int(a)
+            else:
+                for loglvl, logstr in AVAILABLE_LOGLVL:
+                    if a == logstr: LOG_LEVEL = loglvl
+                if LOG_LEVEL is None:
+                    raise Exception("LOG_LEVEL %s unknown", a)
 
     if should_daemon:
         daemonize(pidfile)
