@@ -151,6 +151,7 @@ class TraktForVLC(object):
             else:
                 video = self.get_Movie(vlc, self.cache["movie_info"])
         else:
+            self.resetCache(currentFile)
 
             video = self.get_TV(vlc)
             if video is None:
