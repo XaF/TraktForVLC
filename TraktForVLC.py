@@ -407,7 +407,7 @@ def daemonize(pidfile=""):
 if __name__ == '__main__':
     should_pair = should_daemon = False
     pidfile = ""
-    datadir = sys.path[0]
+    datadir = os.path.dirname(__file__)
     logfile = ""
     config = ""
 
