@@ -26,8 +26,8 @@ TIMER_INTERVAL = START_WATCHING_TIMER = 0
 DATETIME = datetime.datetime.now()
 
 # In DEBUG level, timers're forced to 5secs
-LOG_LEVEL = logging.DEBUG
-#LOG_LEVEL = logging.INFO
+#LOG_LEVEL = logging.DEBUG
+LOG_LEVEL = logging.INFO
 #LOG_LEVEL = logging.WARNING
 #LOG_LEVEL = logging.ERROR
 
@@ -67,7 +67,7 @@ class TraktForVLC(object):
         self.config.read(configfile)
 
         # Initialize timers
-        if LOG_LEVEL is logging.DEBUG and False: #DEBUG using real timers
+        if LOG_LEVEL is logging.DEBUG:
             self.TIMER_INTERVAL = 5
             self.START_WATCHING_TIMER = 5
             self.log.info("Logger level is set to DEBUG");
