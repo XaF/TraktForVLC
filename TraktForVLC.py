@@ -37,6 +37,7 @@ import traceback
 from copy import deepcopy
 from tvrage import api as tvrage_api
 from tvrage import feeds as tvrage_feeds
+from filenameparser import parse_tv, parse_movie
 
 VERSION = "0.3"
 VLC_VERSION = VLC_DATE  = ""
@@ -246,11 +247,15 @@ class TraktForVLC(object):
         try:
             series, seasonNumber, episodeNumber = series_info
             if series is None:
-                now_playing = vlc.get_title("^(?!status change:)(?P<SeriesName>.+?)(?:[[(]?(?P<Year>[0-9]{4})[])]?.*)? *S?(?P<SeasonNumber>[0-9]+)(?:[ .XE]?(?P<EpisodeNumber>[0-9]{1,3})).*\.[a-z]{2,4}")
-                seriesName = now_playing.group('SeriesName').rstrip(' -').replace('.', ' ')
-                seriesYear = ifnull(now_playing.group('Year'),'1900')
-                seasonNumber = ifnull(now_playing.group('SeasonNumber').lstrip('0'),'0')
-                episodeNumber = ifnull(now_playing.group('EpisodeNumber').lstrip('0'),'0')
+                now_playing = parse_tv(vlc.get_title("^(?!status change:)(.+?)\r?\n").group(1))
+
+                if not now_playing:
+                    self.log.warning("Not able to parse a tvshow from the title file")
+                    return
+
+                seriesName = now_playing['show']
+                seasonNumber = now_playing['season']
+                episodeNumber = now_playing['episodes'][0] # Only working on a single episode at this time
 
                 if self.valid_TV(seriesName):
                     series = tvrage_api.Show(seriesName)
@@ -284,16 +289,16 @@ class TraktForVLC(object):
 
     def get_Movie(self, vlc, movie = None):
         try:
+            duration = int(vlc.get_length())
             if movie is None:
-                now_playing = vlc.get_title("^(?!status change:)(?P<Title>.+?) ?(?:[[(]?(?P<Year>[0-9]{4})[])]?.*)? *\.[a-z]{2,4}")
-                title = now_playing.group('Title')
-                year = ifnull(now_playing.group('Year'), '')
+                now_playing = parse_movie(vlc.get_title("^(?!status change:)(.+?)\r?\n").group(1))
+                title = now_playing['title']
+                year = now_playing['year']
 
                 if self.valid_Movie(title, year, duration):
                     movie = self.cache["movie_info"]
 
             if movie is not None:
-                duration = int(vlc.get_length())
                 playtime = int(vlc.get_time())
                 percentage = playtime*100/duration
 
