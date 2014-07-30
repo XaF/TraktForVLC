@@ -12,7 +12,7 @@ class VLCRemote(object):
         self.timeout = timeout
 
     def _command(self, cmd, return_re=None, raw=False, args=None):
-        
+
         # Clean out anything waiting before starting the command
         cached = self.cnx.read_eager()
         if cached != '':
