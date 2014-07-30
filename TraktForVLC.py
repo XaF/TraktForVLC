@@ -13,6 +13,7 @@ import re
 import os
 import getopt
 import datetime
+import traceback
 from copy import deepcopy
 from tvrage import api as tvrage_api
 from tvrage import feeds as tvrage_feeds
@@ -120,7 +121,6 @@ class TraktForVLC(object):
                 self.main()
             except Exception, e:
                 self.log.error("An unknown error occurred : " + str(e))
-                import traceback # For debugging purposes
                 traceback.print_exc()
             time.sleep(self.TIMER_INTERVAL)
         self.main()
