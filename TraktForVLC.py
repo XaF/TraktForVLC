@@ -73,12 +73,13 @@ class TraktForVLC(object):
 
         # Process log file name
         if LOG_LEVEL is logging.DEBUG:
-            logfile = datadir + "/logs/TraktForVLC-DEBUG.log"
+            logfile = os.path.join(logdir, "TraktForVLC-DEBUG.log")
+
             # Remove existing DEBUG file
             if os.path.isfile(logfile):
                 os.remove(logfile)
         else:
-            logfile = datadir + "/logs/TraktForVLC-" + DATETIME.strftime("%y-%m-%d-%H-%M") + ".log"
+            logfile = os.path.join(logdir, "TraktForVLC-" + DATETIME.strftime("%y-%m-%d-%H-%M") + ".log")
 
         logging.basicConfig(format="%(asctime)s::%(name)s::%(levelname)s::%(message)s",
                             level=LOG_LEVEL,
