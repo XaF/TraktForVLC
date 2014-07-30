@@ -24,7 +24,7 @@ itself based on the original [quietcore's TraktForVLC] [4].
 
 Copyright (C) 2012      quietcore
 
-Copyright (C) 2013      Wifsimster
+Copyright (C) 2013      Damien Battistella
 
 Copyright (C) 2014      Raphaël Beamonte
 
