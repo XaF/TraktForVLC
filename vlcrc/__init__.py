@@ -94,10 +94,15 @@ class VLCRemote(object):
         return playing
 
     def get_info(self):
-        fn_re = re.compile('(?P<info>.+)')
+        fn_re = re.compile('(?P<info>\+----.+\[ end of stream info \])', re.DOTALL)
         info = self._command('info', fn_re, raw=True)
         info = info.groupdict()['info']
-        return info
+
+        dictinfo = {}
+        for match in re.findall("\+----\[ (?P<block>.+?) \](?P<content>.+?)(?=\+----)", info, re.DOTALL):
+            dictinfo[match[0]] = dict(re.findall("([a-zA-Z0-9]*): ([\x20-\x7E]*)", match[1]))
+
+        return dictinfo
 
     def get_status(self):
         fn_re = re.compile('(?P<status>.+)')
