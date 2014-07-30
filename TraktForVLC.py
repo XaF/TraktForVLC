@@ -66,6 +66,11 @@ class TraktForVLC(object):
 
     def __init__(self, datadir, configfile):
 
+        # Verify if the log directory exists or create it
+        logdir = os.path.join(datadir, 'logs')
+        if not os.path.exists(logdir):
+            os.mkdir(logdir)
+
         # Process log file name
         if LOG_LEVEL is logging.DEBUG:
             logfile = datadir + "/logs/TraktForVLC-DEBUG.log"
