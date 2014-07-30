@@ -13,8 +13,9 @@ import re
 import os
 import getopt
 import datetime
-from tvrage import api
-from tvrage import feeds
+from copy import deepcopy
+from tvrage import api as tvrage_api
+from tvrage import feeds as tvrage_feeds
 
 VERSION = "0.3"
 VLC_VERSION = VLC_DATE  = ""
@@ -95,9 +96,21 @@ class TraktForVLC(object):
                                                     trakt_username,
                                                     trakt_password)
 
-        self.scrobbled = False
+        self.resetCache()
+
         self.watching_now = ""
         self.timer = 0
+        self.vlc_connected = True
+
+    def resetCache(self, filename = None):
+        self.log.debug("reset cache")
+        self.cache = {
+            "vlc_fileid": filename,
+            "scrobbled": False,
+            "movie_info": None,
+            "series_info": None,
+            "watching": -1,
+        }
 
     def run(self):
 
@@ -115,102 +128,123 @@ class TraktForVLC(object):
     def main(self):
         try:
             vlc = VLCRemote(self.vlc_ip, self.vlc_port)
+            self.vlc_connected = True
         except:
-            self.log.debug('Could not find VLC running at ' + str(self.vlc_ip) + ':'+ str(self.vlc_port))
-            self.log.debug('Make sure your VLC player is running with --extraintf=rc --rc-host='+ str(self.vlc_ip) +':' + str(self.vlc_port) + ' --rc-quiet')
+            if self.vlc_connected:
+                self.log.debug('Could not find VLC running at ' + str(self.vlc_ip) + ':'+ str(self.vlc_port))
+                self.log.debug('Make sure your VLC player is running with --extraintf=rc --rc-host='+ str(self.vlc_ip) +':' + str(self.vlc_port) + ' --rc-quiet')
+                self.vlc_connected = False
             return
 
-        vlcStatus = vlc.get_status()
+        vlcStatus = vlc.is_playing()
 
-        if vlcStatus:
+        if not vlcStatus:
+            vlc.close()
+            return
+
+        currentFile = "%s - %s" % (vlc.get_title("^(?!status change:)(.+?)\r?\n").group(1), vlc.get_length())
+        if currentFile == self.cache["vlc_fileid"]:
+            if self.cache["series_info"] is None and self.cache["movie_info"] is None:
+                video = None
+            elif self.cache["series_info"] is not None:
+                video = self.get_TV(vlc, self.cache["series_info"])
+            else:
+                video = self.get_Movie(vlc, self.cache["movie_info"])
+        else:
 
             video = self.get_TV(vlc)
-
             if video is None:
                 video = self.get_Movie(vlc)
 
-            if video is None:
-                self.log.info("No tv show nor movie found for the current playing video")
-                return
+        if video is None:
+            self.log.info("No tv show nor movie found for the current playing video")
+            return
 
-            logtitle = video["title"]
-            if video["tv"]:
-                logtitle += " - " + video["season"] + "x" + video["episode"]
+        logtitle = video["title"]
+        if video["tv"]:
+            logtitle += " - %01dx%02d" % (int(video["season"]), int(video["episode"]))
 
-            self.log.debug("----------------------------------------------------------------------------");
-            self.log.debug("                             Timer : " + str(self.timer))
-            self.log.debug("----------------------------------------------------------------------------");
-            self.log.info(logtitle + " state : " + str(video["percentage"]) + "%")
-            self.log.debug("This video is scrobbled : " + str(self.scrobbled))
+        self.log.debug("----------------------------------------------------------------------------");
+        self.log.debug("                             Timer : " + str(self.timer))
+        self.log.debug("----------------------------------------------------------------------------");
+        self.log.info(logtitle + " state : " + str(video["percentage"]) + "%")
+        self.log.debug("This video is scrobbled : " + str(self.cache["scrobbled"]))
 
-            if (video["percentage"] >= 90
-                    and not self.scrobbled):
-                self.log.info("Scrobbling "+ logtitle + " to Trakt...")
-                try:
-                    self.trakt_client.update_media_status(video["title"],
-                                                            video["year"],
-                                                            video["duration"],
-                                                            video["percentage"],
-                                                            VERSION,
-                                                            VLC_VERSION,
-                                                            VLC_DATE,
-                                                            tv=video["tv"],
-                                                            scrobble=True,
-                                                            season=video["season"],
-                                                            episode=video["episode"])
-                    self.scrobbled = True
-                    self.log.info(logtitle + " scrobbled to Trakt !")
-                except TraktClient.TraktError, (e):
-                    self.log.error("An error occurred while trying to scrobble: " + e.msg)
-                    if ("scrobbled" in e.msg and "already" in e.msg):
-                        self.log.info("Seems we've already scrobbled this episode recently, aborting scrobble attempt.")
-                        self.scrobbled = True
+        if video["percentage"] >= 90 and not self.cache["scrobbled"]:
+            self.log.info("Scrobbling "+ logtitle + " to Trakt...")
+            try:
+                self.trakt_client.update_media_status(video["title"],
+                                                        video["year"],
+                                                        video["duration"],
+                                                        video["percentage"],
+                                                        VERSION,
+                                                        VLC_VERSION,
+                                                        VLC_DATE,
+                                                        tv=video["tv"],
+                                                        scrobble=True,
+                                                        season=video["season"],
+                                                        episode=video["episode"])
+                self.cache["scrobbled"] = True
+                self.log.info(logtitle + " scrobbled to Trakt !")
+            except TraktClient.TraktError, (e):
+                self.log.error("An error occurred while trying to scrobble: " + e.msg)
+                if ("scrobbled" in e.msg and "already" in e.msg):
+                    self.log.info("Seems we've already scrobbled this episode recently, aborting scrobble attempt.")
+                    self.cache["scrobbled"] = True
 
-            elif (video["percentage"] < 90
-                    and not self.scrobbled
-                    and (float(video["duration"]) * float(video["percentage"]) / 100.0) >= self.START_WATCHING_TIMER):
+        elif (video["percentage"] < 90
+                and not self.cache["scrobbled"]
+                and video["percentage"] != self.cache["watching"]
+                and (float(video["duration"]) * float(video["percentage"]) / 100.0) >= self.START_WATCHING_TIMER):
 
-                # self.timer = 0
+            # self.timer = 0
 
-                self.log.debug("Trying to mark " + logtitle + " watching on Trakt...")
+            self.log.debug("Trying to mark " + logtitle + " watching on Trakt...")
 
-                try:
-                    self.trakt_client.update_media_status(video["title"],
-                                                            video["year"],
-                                                            video["duration"],
-                                                            video["percentage"],
-                                                            VERSION,
-                                                            VLC_VERSION,
-                                                            VLC_DATE,
-                                                            tv=video["tv"],
-                                                            season=video["season"],
-                                                            episode=video["episode"])
+            try:
+                self.trakt_client.update_media_status(video["title"],
+                                                        video["year"],
+                                                        video["duration"],
+                                                        video["percentage"],
+                                                        VERSION,
+                                                        VLC_VERSION,
+                                                        VLC_DATE,
+                                                        tv=video["tv"],
+                                                        season=video["season"],
+                                                        episode=video["episode"])
 
-                    self.log.info(logtitle + " is currently watching on Trakt...")
-                except TraktClient.TraktError, (e):
-                    self.timer = 870
-                    self.log.error("An error occurred while trying to mark watching " + logtitle + " : " + e.msg)
+                self.log.info(logtitle + " is currently watching on Trakt...")
+                self.cache["watching"] = video["percentage"]
+            except TraktClient.TraktError, (e):
+                self.timer = 870
+                self.log.error("An error occurred while trying to mark watching " + logtitle + " : " + e.msg)
 
         vlc.close()
 
-    def get_TV(self, vlc):
+    def get_TV(self, vlc, series_info = (None, None, None)):
         try:
-            now_playing = vlc.get_title("^(?!status change:)(?P<SeriesName>.+?)(?:[[(]?(?P<Year>[0-9]{4})[])]?.*)? *S?(?P<SeasonNumber>[0-9]+)(?:[ .XE]?(?P<EpisodeNumber>[0-9]{1,3})).*\.[a-z]{2,4}")
-            seriesName = now_playing.group('SeriesName').rstrip(' -').replace('.', ' ')
-            seriesYear = ifnull(now_playing.group('Year'),'1900')
-            seasonNumber = ifnull(now_playing.group('SeasonNumber').lstrip('0'),'0')
-            episodeNumber = ifnull(now_playing.group('EpisodeNumber').lstrip('0'),'0')
+            series, seasonNumber, episodeNumber = series_info
+            if series is None:
+                now_playing = vlc.get_title("^(?!status change:)(?P<SeriesName>.+?)(?:[[(]?(?P<Year>[0-9]{4})[])]?.*)? *S?(?P<SeasonNumber>[0-9]+)(?:[ .XE]?(?P<EpisodeNumber>[0-9]{1,3})).*\.[a-z]{2,4}")
+                seriesName = now_playing.group('SeriesName').rstrip(' -').replace('.', ' ')
+                seriesYear = ifnull(now_playing.group('Year'),'1900')
+                seasonNumber = ifnull(now_playing.group('SeasonNumber').lstrip('0'),'0')
+                episodeNumber = ifnull(now_playing.group('EpisodeNumber').lstrip('0'),'0')
 
-            if self.valid_TV(seriesName):
-                series = api.Show(seriesName)
+                if self.valid_TV(seriesName):
+                    series = tvrage_api.Show(seriesName)
+                    self.cache["series_info"] = (deepcopy(series), seasonNumber, episodeNumber)
+
+            if series is not None:
                 duration = int(vlc.get_length())
                 time = int(vlc.get_time())
                 percentage = time*100/duration
                 try:
                     episode = series.season(int(seasonNumber)).episode(int(episodeNumber))
-                    return self.set_video(True, seriesName, series.started, duration, percentage, seasonNumber, episodeNumber)
+                    return self.set_video(True, episode.show, series.started, duration, percentage, episode.season, episode.number)
                 except:
                     self.log.warning("Episode : No valid episode found !")
+                    self.cache["series_info"] = None
                     return
         except:
             self.log.warning("No matching tv show found for video playing")
@@ -218,7 +252,7 @@ class TraktForVLC(object):
 
     def valid_TV(self, seriesName):
         try:
-            series = feeds.full_search(seriesName)
+            series = tvrage_feeds.full_search(seriesName)
             if (len(series) == 0):
                 self.log.debug("Get_Title -> No Series found by file name.")
                 return False
@@ -227,19 +261,23 @@ class TraktForVLC(object):
             self.log.debug("Valid_TV -> no valid title found.")
             return False
 
-    def get_Movie(self, vlc):
+    def get_Movie(self, vlc, movie = None):
         try:
-            now_playing = vlc.get_title("^(?!status change:)(?P<Title>.+?) ?(?:[[(]?(?P<Year>[0-9]{4})[])]?.*)? *\.[a-z]{2,4}")
-            title = now_playing.group('Title')
-            year = ifnull(now_playing.group('Year'), '')
-            duration = int(vlc.get_length())
-            playtime = int(vlc.get_time())
-            percentage = playtime*100/duration
-            if self.valid_Movie(title, year, duration):
-                movie = movie_info.get_movie_info(title, year)
-                title = movie['Title']
-                year = movie['Year']
-                return self.set_video(False, title, year, duration, percentage, -1, -1)
+            if movie is None:
+                now_playing = vlc.get_title("^(?!status change:)(?P<Title>.+?) ?(?:[[(]?(?P<Year>[0-9]{4})[])]?.*)? *\.[a-z]{2,4}")
+                title = now_playing.group('Title')
+                year = ifnull(now_playing.group('Year'), '')
+
+                if self.valid_Movie(title, year, duration):
+                    movie = self.cache["movie_info"]
+
+            if movie is not None:
+                duration = int(vlc.get_length())
+                playtime = int(vlc.get_time())
+                percentage = playtime*100/duration
+
+                return self.set_video(False, movie['Title'], movie['Year'], duration, percentage)
+
             return
         except:
             self.log.debug("No matching movie found for video playing")
@@ -261,13 +299,14 @@ class TraktForVLC(object):
                 return False
             # Verify that the VLC duration is within 5 minutes of the official duration
             if (vlcDuration >= time - 300) and (vlcDuration <= time + 300):
+                self.cache["movie_info"] = deepcopy(movie)
                 return True
         except:
             self.log.debug("Valid_Movie -> no valid title found")
             return False
         return False
 
-    def set_video(self, tv, title, year, duration, percentage, season, episode):
+    def set_video(self, tv, title, year, duration, percentage, season = -1, episode = -1):
         video = {}
         video["tv"] = tv
         video["title"] = title
