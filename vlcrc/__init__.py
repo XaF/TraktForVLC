@@ -88,7 +88,7 @@ class VLCRemote(object):
         return title
 
     def is_playing(self):
-        fn_re = re.compile('(?P<playing>.+)')
+        fn_re = re.compile('(?P<playing>\d+)')
         playing = self._command('is_playing', fn_re, raw=True)
         playing = playing.groupdict()['playing']
         return playing
