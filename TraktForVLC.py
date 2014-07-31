@@ -217,7 +217,8 @@ class TraktForVLC(object):
 
                 # If there is something in the cache, we can purge the watching and scrobbled
                 # information, so if the video is opened again we will consider it's a new watch
-                self.resetCacheView()
+                if self.cache['vlc_file_name'] is not None:
+                    self.resetCacheView()
 
             return
 
