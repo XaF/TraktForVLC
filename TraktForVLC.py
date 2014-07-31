@@ -32,6 +32,7 @@ import time
 import re
 import os
 import getopt
+import time
 import datetime
 import traceback
 from copy import deepcopy
@@ -159,6 +160,7 @@ class TraktForVLC(object):
             "movie_info": None,
             "series_info": None,
             "series_current_ep": -1,
+            "started_watching": None,
             "watching": -1,
         }
 
@@ -167,6 +169,7 @@ class TraktForVLC(object):
 
         self.cache['watching'] = -1
         self.cache['scrobbled'] = False
+        self.cache['started_watching'] = None
 
         if episode is not None:
             self.cache['series_current_ep'] = episode
@@ -226,6 +229,7 @@ class TraktForVLC(object):
                 self.trakt_client.cancelWatching(tv=(self.cache['series_info'] is not None))
 
             self.resetCache(currentFileName, currentFileLength)
+            self.cache['started_watching'] = (time.time(), self.vlcTime)
 
             video = self.get_TV(vlc)
             if video is None:
@@ -243,12 +247,17 @@ class TraktForVLC(object):
             if (self.cache['watching'] > -1
                     and self.cache['series_current_ep'] != video['episode']):
                 self.resetCacheView(video['episode'])
+                self.cache['started_watching'] = (time.time(), self.vlcTime % video['duration'])
 
         self.log.info(logtitle + " state : " + str(video["percentage"]) + "%")
         self.log.debug(video)
         self.log.debug("This video is scrobbled : " + str(self.cache["scrobbled"]))
 
-        if video["percentage"] >= 90 and not self.cache["scrobbled"]:
+        if (video["percentage"] >= 90
+                and not self.cache["scrobbled"]
+                and (time.time() - self.cache['started_watching'][0]) > (float(video['duration']) / 3.0)
+                and (self.vlcTime - self.cache['started_watching'][1]) > (float(video['duration']) / 4.0)
+                ):
             self.log.info("Scrobbling "+ logtitle + " to Trakt...")
             try:
                 self.trakt_client.update_media_status(video["title"],
