@@ -71,9 +71,8 @@ class TraktClient(object):
         
         self.call_method(method, data)
     
-    def cancelWatching(self):
-        self.call_method("show/cancelwatching/%API%")
-        self.call_method("movie/cancelwatching/%API%")
+    def cancelWatching(self, tv = False):
+        self.call_method("%s/cancelwatching/%%API%%" % ("show" if tv else "movie"))
 
 class TraktError(Exception):
     def __init__(self, msg):
