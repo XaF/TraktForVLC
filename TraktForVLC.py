@@ -172,7 +172,7 @@ class TraktForVLC(object):
         self.vlc_connected = True
 
     def resetCache(self, filename = None, filelength = None):
-        self.log.debug("reset cache")
+        self.log.debug("reset cache (%s, %s)" % (filename, filelength))
         self.cache = {
             "vlc_file_name": filename,
             "vlc_file_length": filelength,
@@ -185,7 +185,7 @@ class TraktForVLC(object):
         }
 
     def resetCacheView(self, episode = None):
-        self.log.debug('reset cache view status')
+        self.log.debug('reset cache view status (%s)' % episode)
 
         self.cache['watching'] = -1
         self.cache['scrobbled'] = False
@@ -258,6 +258,8 @@ class TraktForVLC(object):
             else:
                 video = self.get_Movie(vlc, self.cache["movie_info"])
         else:
+            self.log.debug("New file: %s (%s)" % (currentFileName, currentFileLength))
+
             # If we were watching a video but we didn't finish it, we
             # have to cancel the watching status
             if self.cache["watching"] > -1 and not self.cache["scrobbled"]:
