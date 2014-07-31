@@ -147,6 +147,7 @@ class TraktForVLC(object):
         self.tvdb = tvdb_api.Tvdb(cache=False, language='en')
 
         self.watching_now = ""
+        self.vlcTime = 0
         self.vlc_connected = True
 
     def resetCache(self, filename = None, filelength = None):
@@ -209,6 +210,7 @@ class TraktForVLC(object):
 
         currentFileName = vlc.get_title("^(?!status change:)([^\r\n]+?)\r?\n").group(1)
         currentFileLength = vlc.get_length()
+        self.vlcTime = int(vlc.get_time())
         if (currentFileName == self.cache["vlc_file_name"]
                 and currentFileLength == self.cache['vlc_file_length']):
             if self.cache["series_info"] is None and self.cache["movie_info"] is None:
@@ -315,7 +317,7 @@ class TraktForVLC(object):
 
             if series is not None:
                 duration = int(self.cache['vlc_file_length'])
-                time = int(vlc.get_time())
+                time = int(self.vlcTime)
 
                 # Calculate the relative time and duration depending on the number of episodes
                 duration = int(float(duration) / float(len(episodeNumber)))
@@ -362,7 +364,7 @@ class TraktForVLC(object):
                     movie = self.cache["movie_info"]
 
             if movie is not None:
-                playtime = int(vlc.get_time())
+                playtime = int(vlcTime)
                 percentage = playtime*100/duration
 
                 return self.set_video(False, movie['Title'], movie['Year'], movie['imdbID'], duration, percentage)
