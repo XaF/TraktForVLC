@@ -44,7 +44,7 @@ import tvdb_api
 from vlcrc import VLCRemote
 
 
-__version_info__ = (0, 0, 3, 'alpha', 0)
+__version_info__ = (1, 0, 0, 'rc1', 0)
 __version__ = "%d.%d.%d %s" % __version_info__[:4]
 
 VLC_VERSION = VLC_DATE  = ""
