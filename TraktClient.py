@@ -28,10 +28,13 @@ class TraktClient(object):
             
             encoded_data = json.dumps(data);
             
+            sendurl = "http://api.trakt.tv/" + method
+
+            self.log.debug("Sending to %s" % sendurl)
             self.log.debug(encoded_data)
 
             try:
-                stream = urllib.urlopen("http://api.trakt.tv/" + method,
+                stream = urllib.urlopen(sendurl,
                                         encoded_data)
                 resp = stream.read()
                 self.log.debug("Response from Trakt: " + resp)
