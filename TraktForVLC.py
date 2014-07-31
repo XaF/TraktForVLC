@@ -149,10 +149,11 @@ class TraktForVLC(object):
         self.watching_now = ""
         self.vlc_connected = True
 
-    def resetCache(self, filename = None):
+    def resetCache(self, filename = None, filelength = None):
         self.log.debug("reset cache")
         self.cache = {
-            "vlc_fileid": filename,
+            "vlc_file_name": filename,
+            "vlc_file_length": filelength,
             "scrobbled": False,
             "movie_info": None,
             "series_info": None,
@@ -192,8 +193,10 @@ class TraktForVLC(object):
             vlc.close()
             return
 
-        currentFile = "%s - %s" % (vlc.get_title("^(?!status change:)([^\r\n]+?)\r?\n").group(1), vlc.get_length())
-        if currentFile == self.cache["vlc_fileid"]:
+        currentFileName = vlc.get_title("^(?!status change:)([^\r\n]+?)\r?\n").group(1)
+        currentFileLength = vlc.get_length()
+        if (currentFileName == self.cache["vlc_file_name"]
+                and currentFileLength == self.cache['vlc_file_length']):
             if self.cache["series_info"] is None and self.cache["movie_info"] is None:
                 video = None
             elif self.cache["series_info"] is not None:
@@ -206,7 +209,7 @@ class TraktForVLC(object):
             if self.cache["watching"] > -1 and not self.cache["scrobbled"]:
                 self.trakt_client.cancelWatching(tv=(self.cache['series_info'] is None))
 
-            self.resetCache(currentFile)
+            self.resetCache(currentFileName, currentFileLength)
 
             video = self.get_TV(vlc)
             if video is None:
