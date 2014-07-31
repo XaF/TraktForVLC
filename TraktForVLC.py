@@ -64,7 +64,7 @@ AVAILABLE_LOGLVL = [
         (logging.CRITICAL,  'CRITICAL'),    # 50
         ]
 
-# In DEBUG level, timers're forced to 5secs
+# Specify default log level
 LOG_LEVEL = logging.WARNING
 
 # Use small timers, useful in debug mode
