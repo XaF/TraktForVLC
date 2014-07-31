@@ -157,8 +157,18 @@ class TraktForVLC(object):
             "scrobbled": False,
             "movie_info": None,
             "series_info": None,
+            "series_current_ep": -1,
             "watching": -1,
         }
+
+    def resetCacheView(self, episode = None):
+        self.log.debug('reset cache view status')
+
+        self.cache['watching'] = -1
+        self.cache['scrobbled'] = False
+
+        if episode is not None:
+            self.cache['series_current_ep'] = episode
 
     def run(self):
 
@@ -184,6 +194,10 @@ class TraktForVLC(object):
                 # have to cancel the watching status
                 if self.cache["watching"] > -1 and not self.cache["scrobbled"]:
                     self.trakt_client.cancelWatching(tv=(self.cache['series_info'] is not None))
+
+                # If there is something in the cache, we can purge the watching and scrobbled
+                # information, so if the video is opened again we will consider it's a new watch
+                self.resetCacheView()
 
             return
 
@@ -222,6 +236,11 @@ class TraktForVLC(object):
         logtitle = video["title"]
         if video["tv"]:
             logtitle += " - %01dx%02d" % (int(video["season"]), int(video["episode"]))
+
+            # If we changed episode, we have to reset the view status
+            if (self.cache['watching'] > -1
+                    and self.cache['series_current_ep'] != video['episode']):
+                self.resetCacheView(video['episode'])
 
         self.log.info(logtitle + " state : " + str(video["percentage"]) + "%")
         self.log.debug("This video is scrobbled : " + str(self.cache["scrobbled"]))
@@ -287,7 +306,7 @@ class TraktForVLC(object):
 
                 seriesName = now_playing['show']
                 seasonNumber = now_playing['season']
-                episodeNumber = now_playing['episodes'][0] # Only working on a single episode at this time
+                episodeNumber = now_playing['episodes']
 
                 if self.valid_TV(seriesName):
                     series = self.tvdb[seriesName]
@@ -296,9 +315,17 @@ class TraktForVLC(object):
             if series is not None:
                 duration = int(self.cache['vlc_file_length'])
                 time = int(vlc.get_time())
+
+                # Calculate the relative time and duration depending on the number of episodes
+                duration = int(float(duration) / float(len(episodeNumber)))
+                currentEpisode = episodeNumber[time / duration]
+                time = time % duration
+
+                # Calculate the given percentage for the current episode
                 percentage = time*100/duration
+
                 try:
-                    episode = series[int(seasonNumber)][int(episodeNumber)]
+                    episode = series[int(seasonNumber)][int(currentEpisode)]
                     return self.set_video(True, series['seriesname'], series['firstaired'], series['imdb_id'], duration, percentage, episode['seasonnumber'], episode['episodenumber'])
                 except:
                     self.log.warning("Episode : No valid episode found !")
