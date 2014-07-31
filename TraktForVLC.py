@@ -306,11 +306,11 @@ class TraktForVLC(object):
         try:
             series = tvrage_feeds.full_search(seriesName)
             if (len(series) == 0):
-                self.log.debug("Get_Title -> No Series found by file name.")
+                self.log.debug("valid_TV: no series found with the name '%s'" % seriesName)
                 return False
             return True
         except:
-            self.log.debug("Valid_TV -> no valid title found.")
+            self.log.debug("valid_TV: no valid title found.")
             return False
 
     def get_Movie(self, vlc, movie = None):
@@ -348,13 +348,16 @@ class TraktForVLC(object):
                 timem = 0 if r.group('min') is None else int(r.group('min'))
                 time = timeh*60*60+timem*60
             except:
+                self.log.debug("valid_Movie: unable to compute the duration")
                 return False
             # Verify that the VLC duration is within 5 minutes of the official duration
             if (vlcDuration >= time - 300) and (vlcDuration <= time + 300):
                 self.cache["movie_info"] = deepcopy(movie)
                 return True
+            else:
+                self.log.debug("valid_Movie: time range not respected (%d +-300 != %d)" % (time, vlcDuration))
         except:
-            self.log.debug("Valid_Movie -> no valid title found")
+            self.log.debug("valid_Movie: no valid title found")
             return False
         return False
 
