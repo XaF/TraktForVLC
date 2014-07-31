@@ -131,6 +131,8 @@ Timer = 60                  # Time (sec) between each loop and look of TraktForV
 StartWatching = 30          # Time (sec) before considering a video is currently watched
 ScrobbleMovie = Yes         # Whether or not TraktForVLC will automatically scrobble movies
 ScrobbleTV = Yes            # Whether or not TraktForVLC will automatically scrobble tv shows
+WatchingMovie = Yes         # Whether or not movies will be marked as being watched
+WatchingTV = Yes            # Whether or not tv shows will be marked as being watched
 ```
 This is the script-specific configuration, the time between each loop of
 work, the time before considering you're effectively watching a video, and

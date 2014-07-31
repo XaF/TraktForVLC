@@ -11,3 +11,5 @@ Timer = 60
 StartWatching = 30
 ScrobbleMovie = Yes
 ScrobbleTV = Yes
+WatchingMovie = Yes
+WatchingTV = Yes
