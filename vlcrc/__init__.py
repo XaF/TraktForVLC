@@ -88,7 +88,7 @@ class VLCRemote(object):
         return title
 
     def is_playing(self):
-        fn_re = re.compile('(?P<playing>\d+)')
+        fn_re = re.compile('^(?!status change:)(?P<playing>\d+)\r?\n', re.IGNORECASE | re.MULTILINE)
         playing = self._command('is_playing', fn_re, raw=True)
         playing = playing.groupdict()['playing']
         return playing
@@ -111,13 +111,13 @@ class VLCRemote(object):
         return status
 
     def get_length(self):
-        fn_re = re.compile('(?P<length>[0-9]+)')
+        fn_re = re.compile('^(?!status change:)(?P<length>\d+)\r?\n', re.IGNORECASE | re.MULTILINE)
         length = self._command('get_length',fn_re, raw=True)
         length = length.groupdict()['length']
         return length
 
     def get_time(self):
-        fn_re = re.compile('(?P<time>[0-9]+)')
+        fn_re = re.compile('^(?!status change:)(?P<time>\d+)\r?\n', re.IGNORECASE | re.MULTILINE)
         time = self._command('get_time',fn_re, raw=True)
         time = time.groupdict()['time']
         return time
