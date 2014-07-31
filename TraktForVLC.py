@@ -369,9 +369,6 @@ class TraktForVLC(object):
         video["episode"] = episode
         return video
 
-def ifnull(var, val):
-    return val if var is None else var
-
 def daemonize(pidfile=""):
     """
     Forks the process off to run as a daemon. Most of this code is from the
