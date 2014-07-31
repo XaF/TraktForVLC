@@ -484,7 +484,7 @@ if __name__ == '__main__':
         print "Pidilfe isn't useful when not running as a daemon, ignoring pidfile."
 
     if config == "":
-        config = sys.path[0]
+        config = datadir
     configfile = config + "/config.ini"
 
     client = TraktForVLC(datadir, configfile)
