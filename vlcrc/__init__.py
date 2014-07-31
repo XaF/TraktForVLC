@@ -14,7 +14,7 @@ class VLCRemote(object):
     def _command(self, cmd, return_re=None, raw=False, args=None):
 
         # Clean out anything waiting before starting the command
-        cached = self.cnx.read_eager()
+        cached = self.cnx.read_very_eager()
         if cached != '':
             self.log.debug('cleaning cache')
             self.log.debug('<- Received: %s'%cached.strip())
