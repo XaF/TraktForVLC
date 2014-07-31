@@ -174,7 +174,7 @@ class TraktForVLC(object):
             self.vlc_connected = True
         except:
             if self.vlc_connected:
-                self.log.debug('Could not find VLC running at ' + str(self.vlc_ip) + ':'+ str(self.vlc_port))
+                self.log.info('Could not find VLC running at ' + str(self.vlc_ip) + ':'+ str(self.vlc_port))
                 self.log.debug('Make sure your VLC player is running with --extraintf=rc --rc-host='+ str(self.vlc_ip) +':' + str(self.vlc_port) + ' --rc-quiet')
                 self.vlc_connected = False
             return
