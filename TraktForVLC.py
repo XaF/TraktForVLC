@@ -191,7 +191,7 @@ class TraktForVLC(object):
             vlc.close()
             return
 
-        currentFile = "%s - %s" % (vlc.get_title("^(?!status change:)(.+?)\r?\n").group(1), vlc.get_length())
+        currentFile = "%s - %s" % (vlc.get_title("^(?!status change:)([^\r\n]+?)\r?\n").group(1), vlc.get_length())
         if currentFile == self.cache["vlc_fileid"]:
             if self.cache["series_info"] is None and self.cache["movie_info"] is None:
                 video = None
@@ -273,7 +273,7 @@ class TraktForVLC(object):
         try:
             series, seasonNumber, episodeNumber = series_info
             if series is None:
-                now_playing = parse_tv(vlc.get_title("^(?!status change:)(.+?)\r?\n").group(1))
+                now_playing = parse_tv(vlc.get_title("^(?!status change:)([^\r\n]+?)\r?\n").group(1))
 
                 if not now_playing:
                     self.log.info("Not able to parse a tvshow from the title file")
@@ -317,7 +317,7 @@ class TraktForVLC(object):
         try:
             duration = int(vlc.get_length())
             if movie is None:
-                now_playing = parse_movie(vlc.get_title("^(?!status change:)(.+?)\r?\n").group(1))
+                now_playing = parse_movie(vlc.get_title("^(?!status change:)([^\r\n]+?)\r?\n").group(1))
                 title = now_playing['title']
                 year = now_playing['year']
 
