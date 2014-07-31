@@ -31,6 +31,8 @@ import re
 import sys
 import time
 import traceback
+from urllib import unquote
+from urlparse import urlparse
 
 # Local import
 import ConfigParser
@@ -233,6 +235,16 @@ class TraktForVLC(object):
         currentFileName = vlc.get_title("^(?!status change:)([^\r\n]+?)\r?\n").group(1)
         currentFileLength = vlc.get_length()
         self.vlcTime = int(vlc.get_time())
+
+        # Parse the filename to verify if it comes from a stream
+        parsed = urlparse(currentFileName)
+        if parsed.netloc:
+            # Set the filename using only the basename of the parsed path
+            currentFileName = os.path.basename(parsed.path)
+
+            # And use urllib's unquote to bring back special chars
+            currentFileName = unquote(currentFileName)
+
         if (currentFileName == self.cache["vlc_file_name"]
                 and currentFileLength == self.cache['vlc_file_length']):
             if self.cache["series_info"] is None and self.cache["movie_info"] is None:
