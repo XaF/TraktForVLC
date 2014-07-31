@@ -28,6 +28,7 @@ import getopt
 import logging
 import os
 import re
+import signal
 import sys
 import time
 import traceback
@@ -194,7 +195,12 @@ class TraktForVLC(object):
         if episode is not None:
             self.cache['series_current_ep'] = episode
 
+    def close(self, signal, frame):
+        self.log.info("Program closed by SIGINT")
+        sys.exit(0)
+
     def run(self):
+        signal.signal(signal.SIGINT, self.close)
 
         while (True):
             try:
