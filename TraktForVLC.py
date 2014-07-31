@@ -418,26 +418,31 @@ if __name__ == '__main__':
     logfile = ""
     config = ""
 
+    def help():
+        print "Available options:"
+        print '     --config=path           Path to config file'
+        print '     -d,--daemon             Run as daemon'
+        print '     --datadir=path          Location of the app data (logs,...)'
+        print '     --debug                 Enter DEBUG mode'
+        print '     -h,--help               This message'
+        print '     --loglevel=lvl          Specify the log level'
+        print '     --pidfile=path          Indicate pidfile (for daemon mode)'
+        print '     --small-timers          Activate small timers (for DEBUG mode)'
+
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "d", [
+        opts, args = getopt.getopt(sys.argv[1:], "dh", [
             'config='
             'daemon',
             'datadir=',
             'debug',
+            'help',
             'loglevel=',
             'pidfile=',
             'small-timers',
             ])
     except getopt.GetoptError:
-        print "Available options:"
-        print '     --config=path           Path to config file'
-        print '     --daemon                Run as daemon'
-        print '     --datadir=path          Location of the app data (logs,...)'
-        print '     --debug                 Enter DEBUG mode'
-        print '     --pidfile=path          Indicate pidfile (for daemon mode)'
-        print '     --small-timers          Activate small timers (for DEBUG mode)'
-        print '     --loglevel=lvl          Specify the log level'
-        sys.exit()
+        help()
+        sys.exit(1)
 
     for o, a in opts:
         # Determine location of config file
@@ -458,6 +463,11 @@ if __name__ == '__main__':
         # DEBUG mode
         elif o in ('--debug',):
             LOG_LEVEL = logging.DEBUG
+
+        # Help message
+        elif o in ('-h', '--help',):
+            help()
+            sys.exit(0)
 
         # Specify log level
         elif o in ('--loglevel',):
