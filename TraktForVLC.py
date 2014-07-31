@@ -440,7 +440,8 @@ if __name__ == '__main__':
             'pidfile=',
             'small-timers',
             ])
-    except getopt.GetoptError:
+    except getopt.GetoptError, e:
+        print 'Error:', e.msg
         help()
         sys.exit(1)
 
@@ -487,6 +488,10 @@ if __name__ == '__main__':
         # Use small timers instead of those in the config file
         elif o in ('--small-timers',):
             SMALL_TIMERS = True
+
+        # An untreated command-line option has been passed
+        else:
+            raise Exception('Unknown command line option: %s', o)
 
     if should_daemon:
         daemonize(pidfile)
