@@ -279,7 +279,7 @@ class TraktForVLC(object):
         try:
             series, seasonNumber, episodeNumber = series_info
             if series is None:
-                now_playing = parse_tv(vlc.get_title("^(?!status change:)([^\r\n]+?)\r?\n").group(1))
+                now_playing = parse_tv(self.cache['vlc_file_name'])
 
                 if not now_playing:
                     self.log.info("Not able to parse a tvshow from the title file")
@@ -294,7 +294,7 @@ class TraktForVLC(object):
                     self.cache["series_info"] = (deepcopy(series), seasonNumber, episodeNumber)
 
             if series is not None:
-                duration = int(vlc.get_length())
+                duration = int(self.cache['vlc_file_length'])
                 time = int(vlc.get_time())
                 percentage = time*100/duration
                 try:
@@ -324,9 +324,9 @@ class TraktForVLC(object):
 
     def get_Movie(self, vlc, movie = None):
         try:
-            duration = int(vlc.get_length())
+            duration = int(self.cache['vlc_file_length'])
             if movie is None:
-                now_playing = parse_movie(vlc.get_title("^(?!status change:)([^\r\n]+?)\r?\n").group(1))
+                now_playing = parse_movie(self.cache['vlc_file_name'])
                 title = now_playing['title']
                 year = now_playing['year']
 
