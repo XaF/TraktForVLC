@@ -21,23 +21,25 @@
 # Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 # or see <http://www.gnu.org/licenses/>.
 
-#import urllib2
+# Python lib import
+from copy import deepcopy
+import datetime
+import getopt
 import logging
-import ConfigParser
-from vlcrc import VLCRemote
-import movie_info
-import TraktClient
+import os
+import re
 import sys
 import time
-import re
-import os
-import getopt
-import time
-import datetime
 import traceback
-from copy import deepcopy
-import tvdb_api
+
+# Local import
+import ConfigParser
 from filenameparser import parse_tv, parse_movie
+import movie_info
+import TraktClient
+import tvdb_api
+from vlcrc import VLCRemote
+
 
 __version_info__ = (0, 0, 3, 'alpha', 0)
 __version__ = "%d.%d.%d %s" % __version_info__[:4]
