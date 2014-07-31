@@ -145,7 +145,6 @@ class TraktForVLC(object):
         self.resetCache()
 
         self.watching_now = ""
-        self.timer = 0
         self.vlc_connected = True
 
     def resetCache(self, filename = None):
@@ -161,7 +160,6 @@ class TraktForVLC(object):
     def run(self):
 
         while (True):
-            self.timer += self.TIMER_INTERVAL
             try:
                 self.main()
             except Exception, e:
@@ -210,9 +208,6 @@ class TraktForVLC(object):
         if video["tv"]:
             logtitle += " - %01dx%02d" % (int(video["season"]), int(video["episode"]))
 
-        self.log.debug("----------------------------------------------------------------------------");
-        self.log.debug("                             Timer : " + str(self.timer))
-        self.log.debug("----------------------------------------------------------------------------");
         self.log.info(logtitle + " state : " + str(video["percentage"]) + "%")
         self.log.debug("This video is scrobbled : " + str(self.cache["scrobbled"]))
 
@@ -242,9 +237,6 @@ class TraktForVLC(object):
                 and not self.cache["scrobbled"]
                 and video["percentage"] != self.cache["watching"]
                 and (float(video["duration"]) * float(video["percentage"]) / 100.0) >= self.START_WATCHING_TIMER):
-
-            # self.timer = 0
-
             self.log.debug("Trying to mark " + logtitle + " watching on Trakt...")
 
             try:
@@ -262,7 +254,6 @@ class TraktForVLC(object):
                 self.log.info(logtitle + " is currently watching on Trakt...")
                 self.cache["watching"] = video["percentage"]
             except TraktClient.TraktError, (e):
-                self.timer = 870
                 self.log.error("An error occurred while trying to mark watching " + logtitle + " : " + e.msg)
 
         vlc.close()
