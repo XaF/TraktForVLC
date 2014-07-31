@@ -163,8 +163,7 @@ class TraktForVLC(object):
             try:
                 self.main()
             except Exception, e:
-                self.log.error("An unknown error occurred : " + str(e))
-                traceback.print_exc()
+                self.log.error("An unknown error occurred", exc_info=sys.exc_info())
             time.sleep(self.TIMER_INTERVAL)
         self.main()
 
@@ -175,7 +174,7 @@ class TraktForVLC(object):
         except:
             if self.vlc_connected:
                 self.log.info('Could not find VLC running at ' + str(self.vlc_ip) + ':'+ str(self.vlc_port))
-                self.log.debug('Make sure your VLC player is running with --extraintf=rc --rc-host='+ str(self.vlc_ip) +':' + str(self.vlc_port) + ' --rc-quiet')
+                self.log.debug('Make sure your VLC player is running with --extraintf=rc --rc-host='+ str(self.vlc_ip) +':' + str(self.vlc_port) + ' --rc-quiet', exc_info=sys.exc_info())
                 self.vlc_connected = False
 
                 # If we were watching a movie but we didn't finish it, we
@@ -239,7 +238,7 @@ class TraktForVLC(object):
                 self.cache["scrobbled"] = True
                 self.log.info(logtitle + " scrobbled to Trakt !")
             except TraktClient.TraktError, (e):
-                self.log.error("An error occurred while trying to scrobble: " + e.msg)
+                self.log.error("An error occurred while trying to scrobble", exc_info=sys.exc_info())
                 if ("scrobbled" in e.msg and "already" in e.msg):
                     self.log.info("Seems we've already scrobbled this episode recently, aborting scrobble attempt.")
                     self.cache["scrobbled"] = True
@@ -265,7 +264,7 @@ class TraktForVLC(object):
                 self.log.info(logtitle + " is currently watching on Trakt...")
                 self.cache["watching"] = video["percentage"]
             except TraktClient.TraktError, (e):
-                self.log.error("An error occurred while trying to mark watching " + logtitle + " : " + e.msg)
+                self.log.error("An error occurred while trying to mark as watching " + logtitle, exc_info=sys.exc_info())
 
         vlc.close()
 
@@ -296,10 +295,12 @@ class TraktForVLC(object):
                     return self.set_video(True, episode.show, series.started, duration, percentage, episode.season, episode.number)
                 except:
                     self.log.warning("Episode : No valid episode found !")
+                    self.log.debug("Here's to help debug", exc_info=sys.exc_info())
                     self.cache["series_info"] = None
                     return
         except:
             self.log.info("No matching tv show found for video playing")
+            self.log.debug("Here's to help debug", exc_info=sys.exc_info())
             return
 
     def valid_TV(self, seriesName):
@@ -310,7 +311,7 @@ class TraktForVLC(object):
                 return False
             return True
         except:
-            self.log.debug("valid_TV: no valid title found.")
+            self.log.debug("valid_TV: no valid title found.", exc_info=sys.exc_info())
             return False
 
     def get_Movie(self, vlc, movie = None):
@@ -333,6 +334,7 @@ class TraktForVLC(object):
             return
         except:
             self.log.info("No matching movie found for video playing")
+            self.log.debug("Here's to help debug", exc_info=sys.exc_info())
             return
 
 
@@ -348,7 +350,7 @@ class TraktForVLC(object):
                 timem = 0 if r.group('min') is None else int(r.group('min'))
                 time = timeh*60*60+timem*60
             except:
-                self.log.debug("valid_Movie: unable to compute the duration")
+                self.log.debug("valid_Movie: unable to compute the duration", exc_info=sys.exc_info())
                 return False
             # Verify that the VLC duration is within 5 minutes of the official duration
             if (vlcDuration >= time - 300) and (vlcDuration <= time + 300):
@@ -357,7 +359,7 @@ class TraktForVLC(object):
             else:
                 self.log.debug("valid_Movie: time range not respected (%d +-300 != %d)" % (time, vlcDuration))
         except:
-            self.log.debug("valid_Movie: no valid title found")
+            self.log.debug("valid_Movie: no valid title found", exc_info=sys.exc_info())
             return False
         return False
 
