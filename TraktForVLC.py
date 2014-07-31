@@ -227,7 +227,6 @@ class TraktForVLC(object):
             return
 
         vlcStatus = vlc.is_playing()
-
         if not vlcStatus:
             vlc.close()
             return
