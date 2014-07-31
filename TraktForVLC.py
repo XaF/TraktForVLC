@@ -113,6 +113,10 @@ class TraktForVLC(object):
             self.TIMER_INTERVAL = int(self.config.get("TraktForVLC", "Timer"))
             self.START_WATCHING_TIMER = int(self.config.get("TraktForVLC", "StartWatching"))
 
+        # Do we have to scrobble ?
+        self.DO_SCROBBLE_MOVIE = True if self.config.get("TraktForVLC", "ScrobbleMovie") == 'Yes' else False
+        self.DO_SCROBBLE_TV = True if self.config.get("TraktForVLC", "ScrobbleTV") == 'Yes' else False
+
         for loglvl, logstr in AVAILABLE_LOGLVL:
             if LOG_LEVEL <= loglvl:
                 loglevelstr = logstr
@@ -121,6 +125,8 @@ class TraktForVLC(object):
             loglevelstr = str(LOG_LEVEL)
 
         self.log.info("Logger level is set to %s" % loglevelstr);
+        self.log.info("-- Will scrobble movies ? %s" % ('Yes' if self.DO_SCROBBLE_MOVIE else 'No'))
+        self.log.info("-- Will scrobble tv shows ? %s" % ('Yes' if self.DO_SCROBBLE_TV else 'No'))
         self.log.info("-- Timer set to " + str(self.TIMER_INTERVAL) + " secs")
         self.log.info("-- Video will be marked as \"is watching\" from " + str(self.START_WATCHING_TIMER) + " secs")
 
@@ -253,7 +259,8 @@ class TraktForVLC(object):
         self.log.debug(video)
         self.log.debug("This video is scrobbled : " + str(self.cache["scrobbled"]))
 
-        if (video["percentage"] >= 90
+        if (((video['tv'] and self.DO_SCROBBLE_TV) or (not video['tv'] and self.DO_SCROBBLE_MOVIE))
+                and video["percentage"] >= 90
                 and not self.cache["scrobbled"]
                 and (time.time() - self.cache['started_watching'][0]) > (float(video['duration']) / 3.0)
                 and (self.vlcTime - self.cache['started_watching'][1]) > (float(video['duration']) / 4.0)
