@@ -17,7 +17,7 @@ class VLCRemote(object):
         cached = self.cnx.read_eager()
         if cached != '':
             self.log.debug('cleaning cache')
-            self.log.debug('<- Recived: %s'%cached.strip())
+            self.log.debug('<- Received: %s'%cached.strip())
 
         # FIXME - Ugly
         cmd_str = '%s'%cmd
@@ -48,12 +48,12 @@ class VLCRemote(object):
                 err_str += 'Got: %s'%(cmd_ret)
                 self.log.warn(err_str)
                 raise VLCBadReturn(cmd_ret)
-            self.log.debug('<- Recived: %s'%cmd_ret.strip())
+            self.log.debug('<- Received: %s'%cmd_ret.strip())
         else:
             index, match, cmd_ret = self.cnx.expect([return_re], self.timeout)
             if match is None:
                 raise VLCBadReturn(cmd_ret)
-            self.log.debug('<- Recived: %s'%cmd_ret.strip())
+            self.log.debug('<- Received: %s'%cmd_ret.strip())
             return match
 
         if return_re is None:
