@@ -243,6 +243,7 @@ class TraktForVLC(object):
                 self.resetCacheView(video['episode'])
 
         self.log.info(logtitle + " state : " + str(video["percentage"]) + "%")
+        self.log.debug(video)
         self.log.debug("This video is scrobbled : " + str(self.cache["scrobbled"]))
 
         if video["percentage"] >= 90 and not self.cache["scrobbled"]:
