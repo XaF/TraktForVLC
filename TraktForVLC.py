@@ -425,7 +425,7 @@ if __name__ == '__main__':
             'datadir=',
             'debug',
             'pidfile=',
-            'smalltimers',
+            'small-timers',
             'loglevel=',
             ])
     except getopt.GetoptError:
@@ -435,7 +435,7 @@ if __name__ == '__main__':
         print '     --datadir=path          Location of the app data (logs,...)'
         print '     --debug                 Enter DEBUG mode'
         print '     --pidfile=path          Indicate pidfile (for daemon mode)'
-        print '     --smalltimers           Activate small timers (for DEBUG mode)'
+        print '     --small-timers          Activate small timers (for DEBUG mode)'
         print '     --loglevel=lvl          Specify the log level'
         sys.exit()
 
@@ -464,7 +464,7 @@ if __name__ == '__main__':
             LOG_LEVEL = logging.DEBUG
 
         # Use small timers instead of those in the config file
-        elif o in ('--smalltimers',):
+        elif o in ('--small-timers',):
             SMALL_TIMERS = True
 
         # Specify log level
