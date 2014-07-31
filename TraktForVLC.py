@@ -180,10 +180,10 @@ class TraktForVLC(object):
                 self.log.debug('Make sure your VLC player is running with --extraintf=rc --rc-host='+ str(self.vlc_ip) +':' + str(self.vlc_port) + ' --rc-quiet', exc_info=sys.exc_info())
                 self.vlc_connected = False
 
-                # If we were watching a movie but we didn't finish it, we
+                # If we were watching a video but we didn't finish it, we
                 # have to cancel the watching status
                 if self.cache["watching"] > -1 and not self.cache["scrobbled"]:
-                    self.trakt_client.cancelWatching(tv=(self.cache['series_info'] is None))
+                    self.trakt_client.cancelWatching(tv=(self.cache['series_info'] is not None))
 
             return
 
@@ -204,10 +204,10 @@ class TraktForVLC(object):
             else:
                 video = self.get_Movie(vlc, self.cache["movie_info"])
         else:
-            # If we were watching a movie but we didn't finish it, we
+            # If we were watching a video but we didn't finish it, we
             # have to cancel the watching status
             if self.cache["watching"] > -1 and not self.cache["scrobbled"]:
-                self.trakt_client.cancelWatching(tv=(self.cache['series_info'] is None))
+                self.trakt_client.cancelWatching(tv=(self.cache['series_info'] is not None))
 
             self.resetCache(currentFileName, currentFileLength)
 
