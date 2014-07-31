@@ -151,7 +151,7 @@ class TraktForVLC(object):
         trakt_username = self.config.get("Trakt", "Username")
         trakt_password = self.config.get("Trakt", "Password")
 
-        self.log.info("Connect to Trakt(" + trakt_username + ", " + trakt_password + ")")
+        self.log.info("Connect to Trakt(" + trakt_username + ", *********)")
 
         # Initialize Trakt client
         self.trakt_client = TraktClient.TraktClient(trakt_api,
