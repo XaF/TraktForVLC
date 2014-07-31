@@ -7,3 +7,6 @@
 *.DS_Store
 *.swp
 *.out
+
+# TraktForVLC files
+config.ini
