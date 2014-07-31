@@ -44,7 +44,8 @@ import tvdb_api
 from vlcrc import VLCRemote
 
 
-__version_info__ = (1, 0, 0, 'rc1', 0)
+__release_name__ = "Game of Thrones"
+__version_info__ = (1, 0, 0, 'rc1 '+__release_name__, 0)
 __version__ = "%d.%d.%d-%s" % __version_info__[:4]
 
 VLC_VERSION = VLC_DATE  = ""
