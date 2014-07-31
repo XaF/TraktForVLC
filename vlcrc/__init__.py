@@ -91,7 +91,7 @@ class VLCRemote(object):
         fn_re = re.compile('^(?!status change:)(?P<playing>\d+)\r?\n', re.IGNORECASE | re.MULTILINE)
         playing = self._command('is_playing', fn_re, raw=True)
         playing = playing.groupdict()['playing']
-        return playing
+        return int(playing)
 
     def get_info(self):
         fn_re = re.compile('(?P<info>\+----.+\[ end of stream info \])', re.DOTALL)
