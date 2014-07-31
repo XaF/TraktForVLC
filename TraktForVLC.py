@@ -367,14 +367,15 @@ class TraktForVLC(object):
         return False
 
     def set_video(self, tv, title, year, duration, percentage, season = -1, episode = -1):
-        video = {}
-        video["tv"] = tv
-        video["title"] = title
-        video["year"] = year
-        video["duration"] = duration
-        video["percentage"] = percentage
-        video["season"] = season
-        video["episode"] = episode
+        video = {
+                'tv': tv,
+                'title': title,
+                'year': year,
+                'duration': duration,
+                'percentage': percentage,
+                'season': season,
+                'episode': episode,
+                }
         return video
 
 def daemonize(pidfile=""):
