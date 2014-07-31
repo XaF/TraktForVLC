@@ -35,8 +35,7 @@ import getopt
 import datetime
 import traceback
 from copy import deepcopy
-from tvrage import api as tvrage_api
-from tvrage import feeds as tvrage_feeds
+import tvdb_api
 from filenameparser import parse_tv, parse_movie
 
 __version_info__ = (0, 0, 3, 'alpha', 0)
@@ -143,6 +142,9 @@ class TraktForVLC(object):
                                                     trakt_password)
 
         self.resetCache()
+
+        # Initialize tvdb api
+        self.tvdb = tvdb_api.Tvdb(cache=False, language='en')
 
         self.watching_now = ""
         self.vlc_connected = True
@@ -283,7 +285,7 @@ class TraktForVLC(object):
                 episodeNumber = now_playing['episodes'][0] # Only working on a single episode at this time
 
                 if self.valid_TV(seriesName):
-                    series = tvrage_api.Show(seriesName)
+                    series = self.tvdb[seriesName]
                     self.cache["series_info"] = (deepcopy(series), seasonNumber, episodeNumber)
 
             if series is not None:
@@ -291,8 +293,8 @@ class TraktForVLC(object):
                 time = int(vlc.get_time())
                 percentage = time*100/duration
                 try:
-                    episode = series.season(int(seasonNumber)).episode(int(episodeNumber))
-                    return self.set_video(True, episode.show, series.started, duration, percentage, episode.season, episode.number)
+                    episode = series[int(seasonNumber)][int(episodeNumber)]
+                    return self.set_video(True, series['seriesname'], series['firstaired'], duration, percentage, episode['seasonnumber'], episode['episodenumber'])
                 except:
                     self.log.warning("Episode : No valid episode found !")
                     self.log.debug("Here's to help debug", exc_info=sys.exc_info())
@@ -305,7 +307,8 @@ class TraktForVLC(object):
 
     def valid_TV(self, seriesName):
         try:
-            series = tvrage_feeds.full_search(seriesName)
+            #series = tvrage_feeds.full_search(seriesName)
+            series = self.tvdb.search(seriesName)
             if (len(series) == 0):
                 self.log.debug("valid_TV: no series found with the name '%s'" % seriesName)
                 return False
