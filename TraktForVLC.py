@@ -341,7 +341,7 @@ class TraktForVLC(object):
             # Get Movie info
             movie = movie_info.get_movie_info(vlcTitle, vlcYear)
             # Compare Movie runtime against VLC runtime
-            regex = re.compile('^((?P<hour>[0-9]{1,2}).*?h)?.*?(?P<min>[0-9]{1,2}).*?min?',re.IGNORECASE|re.MULTILINE)
+            regex = re.compile('^((?P<hour>[0-9]{1,2}).*?h)?.*?(?P<min>[0-9]+).*?min?',re.IGNORECASE|re.MULTILINE)
             r = regex.search(movie['Runtime'])
             try:
                 timeh = 0 if r.group('hour') is None else int(r.group('hour'))
