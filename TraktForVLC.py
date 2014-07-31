@@ -228,6 +228,7 @@ class TraktForVLC(object):
             try:
                 self.trakt_client.update_media_status(video["title"],
                                                         video["year"],
+                                                        video["imdbid"],
                                                         video["duration"],
                                                         video["percentage"],
                                                         __version__,
@@ -254,6 +255,7 @@ class TraktForVLC(object):
             try:
                 self.trakt_client.update_media_status(video["title"],
                                                         video["year"],
+                                                        video["imdbid"],
                                                         video["duration"],
                                                         video["percentage"],
                                                         __version__,
@@ -294,7 +296,7 @@ class TraktForVLC(object):
                 percentage = time*100/duration
                 try:
                     episode = series[int(seasonNumber)][int(episodeNumber)]
-                    return self.set_video(True, series['seriesname'], series['firstaired'], duration, percentage, episode['seasonnumber'], episode['episodenumber'])
+                    return self.set_video(True, series['seriesname'], series['firstaired'], series['imdb_id'], duration, percentage, episode['seasonnumber'], episode['episodenumber'])
                 except:
                     self.log.warning("Episode : No valid episode found !")
                     self.log.debug("Here's to help debug", exc_info=sys.exc_info())
@@ -332,7 +334,7 @@ class TraktForVLC(object):
                 playtime = int(vlc.get_time())
                 percentage = playtime*100/duration
 
-                return self.set_video(False, movie['Title'], movie['Year'], duration, percentage)
+                return self.set_video(False, movie['Title'], movie['Year'], movie['imdbID'], duration, percentage)
 
             return
         except:
@@ -366,11 +368,12 @@ class TraktForVLC(object):
             return False
         return False
 
-    def set_video(self, tv, title, year, duration, percentage, season = -1, episode = -1):
+    def set_video(self, tv, title, year, imdbid, duration, percentage, season = -1, episode = -1):
         video = {
                 'tv': tv,
                 'title': title,
                 'year': year,
+                'imdbid': imdbid,
                 'duration': duration,
                 'percentage': percentage,
                 'season': season,

@@ -47,11 +47,12 @@ class TraktClient(object):
         else:
             pass #Decisions...
 
-    def update_media_status(self, title, year, duration, progress, plugin_ver,
+    def update_media_status(self, title, year, imdb_id, duration, progress, plugin_ver,
                             media_center_ver, media_center_date,
                             tv=False, season=-1, episode=-1, scrobble=False):
         data = {'title': title,
                 'year': year,
+                'imdb_id': imdb_id,
                 'duration': duration,
                 'progress': progress,
                 'plugin_version': plugin_ver,
