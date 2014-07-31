@@ -419,14 +419,14 @@ if __name__ == '__main__':
     config = ""
 
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "dp", [
+        opts, args = getopt.getopt(sys.argv[1:], "d", [
             'config='
             'daemon',
             'datadir=',
             'debug',
+            'loglevel=',
             'pidfile=',
             'small-timers',
-            'loglevel=',
             ])
     except getopt.GetoptError:
         print "Available options:"
@@ -440,32 +440,24 @@ if __name__ == '__main__':
         sys.exit()
 
     for o, a in opts:
+        # Determine location of config file
+        if o in ('--config',):
+            config = str(a)
+
         # Run as a daemon
-        if o in ('-d', '--daemon'):
+        elif o in ('-d', '--daemon'):
             if sys.platform == 'win32':
                 print "Daemonize not supported under Windows, starting normally"
             else:
                 should_daemon = True
 
-        # Create pid file
-        elif o in ('--pidfile',):
-            pidfile = str(a)
-
         # Determine location of datadir
         elif o in ('--datadir',):
             datadir = str(a)
 
-        # Determine location of config file
-        elif o in ('--config',):
-            config = str(a)
-
         # DEBUG mode
         elif o in ('--debug',):
             LOG_LEVEL = logging.DEBUG
-
-        # Use small timers instead of those in the config file
-        elif o in ('--small-timers',):
-            SMALL_TIMERS = True
 
         # Specify log level
         elif o in ('--loglevel',):
@@ -477,6 +469,14 @@ if __name__ == '__main__':
                     if a == logstr: LOG_LEVEL = loglvl
                 if LOG_LEVEL is None:
                     raise Exception("LOG_LEVEL %s unknown", a)
+
+        # Create pid file
+        elif o in ('--pidfile',):
+            pidfile = str(a)
+
+        # Use small timers instead of those in the config file
+        elif o in ('--small-timers',):
+            SMALL_TIMERS = True
 
     if should_daemon:
         daemonize(pidfile)
