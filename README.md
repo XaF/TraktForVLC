@@ -129,6 +129,7 @@ your account, update your current watching and scrobble when necessary.
 [TraktForVLC]
 Timer = 60                  # Time (sec) between each loop and look of TraktForVLC
 StartWatching = 30          # Time (sec) before considering a video is currently watched
+ScrobblePercent = 90        # Percentage (%) of the video to be spent before scrobbling it
 ScrobbleMovie = Yes         # Whether or not TraktForVLC will automatically scrobble movies
 ScrobbleTV = Yes            # Whether or not TraktForVLC will automatically scrobble tv shows
 WatchingMovie = Yes         # Whether or not movies will be marked as being watched
