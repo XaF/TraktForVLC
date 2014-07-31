@@ -272,6 +272,7 @@ class TraktForVLC(object):
 
         if video is None:
             self.log.info("No tv show nor movie found for the current playing video")
+            vlc.close()
             return
 
         logtitle = video["title"]
