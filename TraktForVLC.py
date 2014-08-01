@@ -532,7 +532,7 @@ if __name__ == '__main__':
 
     try:
         opts, args = getopt.getopt(sys.argv[1:], "dh", [
-            'config='
+            'config=',
             'daemon',
             'datadir=',
             'debug',
