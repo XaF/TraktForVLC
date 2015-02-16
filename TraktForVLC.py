@@ -301,6 +301,7 @@ class TraktForVLC(object):
         if (((video['tv'] and self.DO_SCROBBLE_TV) or (not video['tv'] and self.DO_SCROBBLE_MOVIE))
                 and video["percentage"] >= self.SCROBBLE_PERCENT
                 and not self.cache["scrobbled"]
+                and self.cache['started_watching'] is not None
                 and (time.time() - self.cache['started_watching'][0]) > (float(video['duration']) / 3.0)
                 and (self.vlcTime - self.cache['started_watching'][1]) > (float(video['duration']) / 4.0)
                 ):
