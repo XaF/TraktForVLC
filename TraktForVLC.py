@@ -240,7 +240,7 @@ class TraktForVLC(object):
 
         currentFileLength = vlc.get_length()
         if not int(currentFileLength) > 0:
-            self.log.debug("File length is 0, can't do anything")
+            self.log.debug("main::File length is 0, can't do anything")
             vlc.close()
             return
 
@@ -265,7 +265,7 @@ class TraktForVLC(object):
             else:
                 video = self.get_Movie(vlc, self.cache["movie_info"])
         else:
-            self.log.debug("New file: %s (%s)" % (currentFileName, currentFileLength))
+            self.log.debug("main::New file: %s (%s)" % (currentFileName, currentFileLength))
 
             # If we were watching a video but we didn't finish it, we
             # have to cancel the watching status
@@ -295,8 +295,8 @@ class TraktForVLC(object):
                 self.cache['started_watching'] = (time.time(), self.vlcTime % video['duration'])
 
         self.log.info(logtitle + " state : " + str(video["percentage"]) + "%")
-        self.log.debug(video)
-        self.log.debug("This video is scrobbled : " + str(self.cache["scrobbled"]))
+        self.log.debug("main::Video: %s" % str(video))
+        self.log.debug("main::This video is scrobbled : " + str(self.cache["scrobbled"]))
 
         if (((video['tv'] and self.DO_SCROBBLE_TV) or (not video['tv'] and self.DO_SCROBBLE_MOVIE))
                 and video["percentage"] >= self.SCROBBLE_PERCENT
@@ -332,7 +332,7 @@ class TraktForVLC(object):
                 and not self.cache["scrobbled"]
                 and video["percentage"] != self.cache["watching"]
                 and (float(video["duration"]) * float(video["percentage"]) / 100.0) >= self.START_WATCHING_TIMER):
-            self.log.debug("Trying to mark " + logtitle + " watching on Trakt...")
+            self.log.debug("main::Trying to mark " + logtitle + " watching on Trakt...")
 
             try:
                 self.trakt_client.update_media_status(video["title"],
@@ -389,12 +389,12 @@ class TraktForVLC(object):
                     return self.set_video(True, series['seriesname'], series['firstaired'], series['imdb_id'], duration, percentage, episode['seasonnumber'], episode['episodenumber'])
                 except:
                     self.log.warning("Episode : No valid episode found !")
-                    self.log.debug("Here's to help debug", exc_info=sys.exc_info())
+                    self.log.debug("get_TV::Here's to help debug", exc_info=sys.exc_info())
                     self.cache["series_info"] = None
                     return
         except:
             self.log.info("No matching tv show found for video playing")
-            self.log.debug("Here's to help debug", exc_info=sys.exc_info())
+            self.log.debug("get_TV::Here's to help debug", exc_info=sys.exc_info())
             return
 
     def valid_TV(self, seriesName):
@@ -402,11 +402,11 @@ class TraktForVLC(object):
             #series = tvrage_feeds.full_search(seriesName)
             series = self.tvdb.search(seriesName)
             if (len(series) == 0):
-                self.log.debug("valid_TV: no series found with the name '%s'" % seriesName)
+                self.log.debug("valid_TV::no series found with the name '%s'" % seriesName)
                 return False
             return True
         except:
-            self.log.debug("valid_TV: no valid title found.", exc_info=sys.exc_info())
+            self.log.debug("valid_TV::no valid title found.", exc_info=sys.exc_info())
             return False
 
     def get_Movie(self, vlc, movie = None):
@@ -417,8 +417,11 @@ class TraktForVLC(object):
                 title = now_playing['title']
                 year = now_playing['year']
 
+                self.log.debug("get_Movie::Now playing: %s" % str(now_playing))
+
                 if self.valid_Movie(title, year, duration):
                     movie = self.cache["movie_info"]
+                    self.log.debug("get_Movie::Valid movie found: %s" % str(movie))
 
             if movie is not None:
                 playtime = int(self.vlcTime)
@@ -429,7 +432,7 @@ class TraktForVLC(object):
             return
         except:
             self.log.info("No matching movie found for video playing")
-            self.log.debug("Here's to help debug", exc_info=sys.exc_info())
+            self.log.debug("get_Movie::Here's to help debug", exc_info=sys.exc_info())
             return
 
 
@@ -445,16 +448,16 @@ class TraktForVLC(object):
                 timem = 0 if r.group('min') is None else int(r.group('min'))
                 time = timeh*60*60+timem*60
             except:
-                self.log.debug("valid_Movie: unable to compute the duration", exc_info=sys.exc_info())
+                self.log.debug("valid_Movie::unable to compute the duration", exc_info=sys.exc_info())
                 return False
             # Verify that the VLC duration is within 5 minutes of the official duration
             if (vlcDuration >= time - 300) and (vlcDuration <= time + 300):
                 self.cache["movie_info"] = deepcopy(movie)
                 return True
             else:
-                self.log.debug("valid_Movie: time range not respected (%d +-300 != %d)" % (time, vlcDuration))
+                self.log.debug("valid_Movie::time range not respected (%d +-300 != %d)" % (time, vlcDuration))
         except:
-            self.log.debug("valid_Movie: no valid title found", exc_info=sys.exc_info())
+            self.log.debug("valid_Movie::no valid title found", exc_info=sys.exc_info())
             return False
         return False
 
