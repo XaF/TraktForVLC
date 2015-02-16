@@ -420,7 +420,7 @@ class TraktForVLC(object):
                     movie = self.cache["movie_info"]
 
             if movie is not None:
-                playtime = int(vlcTime)
+                playtime = int(self.vlcTime)
                 percentage = playtime*100/duration
 
                 return self.set_video(False, movie['Title'], movie['Year'], movie['imdbID'], duration, percentage)
