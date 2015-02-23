@@ -277,11 +277,13 @@ for pattern in series_filename_patterns:
 
 # Movies patterns
 movies_filename_patterns = [
-        '''^(?P<moviename>.*?)
+        '''^(\(.*?\)|\[.*?\])?( - )?[ ]*?
+        (?P<moviename>.*?)
         (dvdrip|xvid| cd[0-9]|dvdscr|brrip|divx|[\{\(\[]?(?P<year>[0-9]{4}))
         .*$
         ''',
-        '''^(?P<moviename>.+?)[ ]?                  # Movie name
+        '''^(\(.*?\)|\[.*?\])?( - )?[ ]*?           # Anything
+        (?P<moviename>.+?)[ ]*?                     # Movie name
         (?:[[(]?(?P<year>[0-9]{4})[])]?.*)?         # Year
         \.[a-zA-Z0-9]{2,4}$                         # Anything
         ''',
