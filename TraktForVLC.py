@@ -3,9 +3,9 @@
 #
 # TraktForVLC, to link VLC watching to trakt.tv updating
 #
-# Copyright (C) 2012        quietcore
-# Copyright (C) 2013        Damien Battistella
-# Copyright (C) 2014        Raphaël Beamonte
+# Copyright (C) 2012        Chris Maclellan <chrismaclellan@gmail.com>
+# Copyright (C) 2013        Damien Battistella <wifsimster@gmail.com>
+# Copyright (C) 2014-2015   Raphaël Beamonte <raphael.beamonte@gmail.com>
 #
 # This file is part of TraktForVLC.  TraktForVLC is free software: you can
 # redistribute it and/or modify it under the terms of the GNU General Public
