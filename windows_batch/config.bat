@@ -33,6 +33,10 @@ set tfv_data=C:\your\path\to\TraktForVLC\data\directory\
 :: is. By default, it is the directory in which TraktForVLC.py is.
 set tfv_config=C:\your\path\to\TraktForVLC\config\directory\
 
+:: Set the path to the file in which we will store the processus ID to
+:: allow you to stop the process if needed
+set tfv_pidfile=C:\your\path\to\TraktForVLC\TraktForVLC.pid
+
 
 :::: Configuration to set the registry keys
 :: Set the full path to the VLC exe file on your computer
