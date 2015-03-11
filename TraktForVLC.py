@@ -601,7 +601,7 @@ if __name__ == '__main__':
     if should_daemon:
         daemonize(pidfile)
     elif (pidfile):
-        print "Pidilfe isn't useful when not running as a daemon, ignoring pidfile."
+        file(pidfile, "w").write("%s\n" % str(os.getpid()))
 
     if config == "":
         config = datadir
