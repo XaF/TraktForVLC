@@ -4,7 +4,8 @@ import logging
 
 
 class VLCBadReturn(Exception):
-    pass
+    def __init__(self, msg):
+        self.msg = msg
 
 
 class VLCRemote(object):
@@ -36,26 +37,26 @@ class VLCRemote(object):
             cmd_end = '%s: returned ' % cmd
             cmd_ret = self.cnx.read_until(cmd_end, self.timeout)
             if not cmd_ret.endswith(cmd_end):
-                err_str = 'Sent: %s' % cmd_str
+                err_str = 'Sent: %s\n' % cmd_str
                 err_str += 'Expected: %s\n' % cmd_end
                 err_str += 'Got: %s' % cmd_ret
                 self.log.warn(err_str)
-                raise VLCBadReturn(cmd_ret)
+                raise VLCBadReturn(err_str)
 
             good = '0 (no error)\r\n'
             cmd_fin = self.cnx.read_until('\r\n', 3)
             cmd_ret += cmd_fin
             if cmd_fin != good:
-                err_str = 'Sent: %s' % cmd_str
-                err_str += 'Expected: %s%s' % (cmd_end, good)
+                err_str = 'Sent: %s\n' % cmd_str
+                err_str += 'Expected: %s%s\n' % (cmd_end, good)
                 err_str += 'Got: %s' % (cmd_ret)
                 self.log.warn(err_str)
-                raise VLCBadReturn(cmd_ret)
+                raise VLCBadReturn(err_str)
             self.log.debug('<- Received: %s' % cmd_ret.strip())
         else:
             index, match, cmd_ret = self.cnx.expect([return_re], self.timeout)
             if match is None:
-                raise VLCBadReturn(cmd_ret)
+                raise VLCBadReturn(err_str)
             self.log.debug('<- Received: %s' % cmd_ret.strip())
             return match
 
