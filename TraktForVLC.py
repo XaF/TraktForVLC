@@ -602,7 +602,7 @@ if __name__ == '__main__':
 
     if config == "":
         config = datadir
-    configfile = config + "/config.ini"
+    configfile = os.path.join(config, "config.ini")
 
     client = TraktForVLC(datadir, configfile)
     client.run()
