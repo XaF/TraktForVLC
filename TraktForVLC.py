@@ -45,8 +45,8 @@ from vlcrc import VLCRemote
 
 
 __release_name__ = "Game of Thrones"
-__version_info__ = (1, 0, 0, 'rc1 '+__release_name__, 0)
-__version__ = "%d.%d.%d-%s" % __version_info__[:4]
+__version_info__ = (1, 0, 0, ' '+__release_name__, 0)
+__version__ = "%d.%d.%d%s" % __version_info__[:4]
 
 VLC_VERSION = VLC_DATE  = ""
 TIMER_INTERVAL = START_WATCHING_TIMER = 0
