@@ -1,83 +1,226 @@
 #!/usr/bin/env python
+# encoding: utf-8
+#
+# TraktForVLC, to link VLC watching to trakt.tv updating
+#
+# Copyright (C) 2012        Chris Maclellan <chrismaclellan@gmail.com>
+# Copyright (C) 2015        Raphaël Beamonte <raphael.beamonte@gmail.com>
+#
+# This file is part of TraktForVLC.  TraktForVLC is free software: you can
+# redistribute it and/or modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation, version 2.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+# or see <http://www.gnu.org/licenses/>.
 
-import simplejson as json
-import urllib
+# Imports
 import logging
-import time
+import requests
+import simplejson as json
 
-from hashlib import sha1
 
-class TraktClient(object):
-    def __init__(self, apikey, username, password):
-        self.username = username
-        self.password = sha1(password).hexdigest()
-        self.apikey = apikey
-        self.log = logging.getLogger("TraktClient")
-        
-        self.log.debug("TraktClient logger initialized")
-    
-    def call_method(self, method, data = {}, post=True, retry=3):
-        if (retry == -1):
-            self.log.error("Failed to call method " + method)
-        
-        method = method.replace("%API%", self.apikey)
-        
-        if (post):
-            data["username"] = self.username
-            data["password"] = self.password
-            
-            encoded_data = json.dumps(data);
-            
-            sendurl = "http://api.trakt.tv/" + method
+# Trakt API URL for v2
+api_url = 'https://api-v2launch.trakt.tv/'
 
-            self.log.debug("Sending to %s" % sendurl)
-            self.log.debug(encoded_data)
 
-            try:
-                stream = urllib.urlopen(sendurl,
-                                        encoded_data)
-                resp = stream.read()
-                self.log.debug("Response from Trakt: " + resp)
+# Whether or not to verify HTTPS certificates when calling the API
+verifyHTTPS = True
 
-                resp = json.loads(resp)
-                if ("error" in resp):
-                    raise TraktError(resp["error"])
-            except (IOError, json.JSONDecodeError):
-                self.log.exception("Failed calling method, retrying attempt #" + str(retry - 1) + ".")
-                time.sleep(5)
-                self.call_method(method, data, post, retry - 1)
-                
-        else:
-            pass #Decisions...
 
-    def update_media_status(self, title, year, imdb_id, duration, progress, plugin_ver,
-                            media_center_ver, media_center_date,
-                            tv=False, season=-1, episode=-1, scrobble=False):
-        data = {'title': title,
-                'year': year,
-                'imdb_id': imdb_id,
-                'duration': duration,
-                'progress': progress,
-                'plugin_version': plugin_ver,
-                'media_center_version': media_center_ver,
-                'media_center_date': media_center_date}
-        
-        method = "%s/%s/" % ("show" if tv else "movie",
-                             "scrobble" if scrobble else "watching")
-        
-        self.log.debug("Calling API Method " + method)
-        
-        method += "%API%"
-        
-        if (tv):
-            data["season"] = season
-            data["episode"] = episode
-        
-        self.call_method(method, data)
-    
-    def cancelWatching(self, tv = False):
-        self.call_method("%s/cancelwatching/%%API%%" % ("show" if tv else "movie"))
+# Function to get the right requests method depending on the verb we
+# need to use in the API
+def requestHandler(verb):
+    return {
+        'POST':     requests.post,
+        'GET':      requests.get,
+        'DELETE':   requests.delete,
+        'PUT':      requests.put,
+    }[verb]
 
+
+# Class used for raising errors specifically linked to TraktClient
 class TraktError(Exception):
+
     def __init__(self, msg):
-        self.msg = msg
+        super(TraktError, self).__init__(msg)
+
+
+# TraktClient class
+class TraktClient(object):
+
+    # Initialize the TraktClient class by passing the username and
+    # password of the user
+    def __init__(self, username, password, client_id,
+                 app_version="unknown", app_date="unknown"):
+        # Save those information inside the class
+        self.username = username
+        self.password = password
+        self.app_version = app_version
+        self.app_date = app_date
+
+        # Define global headers for API communication
+        self.headers = {
+            'Content-Type':         'application/json',
+            'trakt-api-version':    '2',
+            'trakt-api-key':        client_id,
+            'trakt-user-login':     username,
+        }
+
+        # Prepare the logging interface
+        self.log = logging.getLogger("TraktClient")
+        self.log.debug("TraktClient logger initialized")
+
+    # Method used to call the API
+    def call_method(self, method, verb='POST', data={}, retry=3):
+        # if retry < 0:
+        #    self.log.error("Failed to call '%s' method '%s'" (verb, method))
+
+        # Only four allowed verbs to make the call
+        verb = verb.upper()
+        if verb not in ('POST', 'GET', 'DELETE', 'PUT'):
+            raise TraktError("verb '%s' unknown" % verb)
+
+        # We prepare the URL we'll connect to
+        sendurl = api_url + method
+
+        # We encode the data using simplejson's dumps method
+        encoded_data = json.dumps(data)
+
+        self.log.debug("Sending %s to %s data %s" %
+                       (verb, sendurl, str(encoded_data)))
+        self.log.debug(encoded_data)
+
+        # We call the API using the requests method returned bu the
+        # requestHandler function
+        stream = requestHandler(verb)(url=sendurl,
+                                      data=encoded_data,
+                                      headers=self.headers,
+                                      verify=verifyHTTPS)
+
+        # We return the response
+        return stream
+
+    # Login to Trakt to be able to call authenticated API methods
+    def __login(self):
+        # Prepare the data to send
+        data = {
+            'login':    self.username,
+            'password': self.password,
+        }
+
+        # Use the call_method method to login
+        stream = self.call_method('auth/login', 'POST', data)
+
+        # If the return code is not 200 or 201, we had an error
+        if not stream.ok:
+            raise TraktError("Unable to authenticate: %s (%s %s)" % (
+                stream.error, stream.status_code, stream.reason))
+
+        # If everything was fine, we search for the token in the response
+        resp = stream.json
+        self.log.debug("Response from Trakt: %s" % str(resp))
+
+        if 'token' in resp.keys():
+            # We add that token to the headers we'll send for each request
+            self.headers['trakt-user-token'] = resp['token']
+
+            self.log.debug("Authenticated, token found")
+            return
+
+        # If no token was found, we raise an error
+        raise TraktError(
+            "Unable to authenticate: no token found in json %s" % str(resp))
+
+    # Logout to Trakt
+    def __logout(self):
+        stream = self.call_method('auth/logout', 'DELETE')
+
+        if not stream.ok:
+            raise TraktError("Unable to logout: %s (%s %s)" %
+                             (stream.error, stream.status_code, stream.reason))
+
+        del self.headers['trakt-user-token']
+
+        self.log.debug("Logged out")
+        return
+
+    # Define an item as started, stopped or paused watching using
+    # its imdb id, its progress and the fact it is or not an episode
+    # of a tv show
+    def watching(self, action, imdb_id, progress, episode=False, retry=False):
+        # Only three actions allowed
+        action = action.lower()
+        if action not in ('start', 'stop', 'pause'):
+            raise TraktError("action '%s' unknown" % action)
+
+        # We prepare the data to send
+        videotype = ("episode" if episode else "movie")
+        data = {
+            videotype: {
+                "ids": {
+                    "imdb": imdb_id,
+                }
+            },
+            "progress":     progress,
+            "app_version":  self.app_version,
+            "app_date":     self.app_date,
+        }
+
+        # We call scrobble/x where x is one of the actions, using the
+        # call_method method.
+        stream = self.call_method('scrobble/%s' % action, 'POST', data)
+
+        # If the answer is not 200 nor 201
+        if not stream.ok:
+            # If it was a 401 HTTP error, we need to authenticate, then
+            # we can call again that function. We try again just one time
+            # in case the 401 error was not due to authentication
+            if not retry and stream.status_code == 401:
+                self.__login()
+                self.watching(action, imdb_id, progress, episode, True)
+                return
+
+            # If it was another error, we raise an error, as it's not normal
+            raise TraktError("Unable to %s %s: %s (%s %s)" % (
+                action, videotype, stream.error, stream.status_code,
+                stream.reason))
+        else:
+            # Else, we just return the potential json response from the server
+            return stream.json
+
+    # Wrapper method that calls the watching method using 'start' as action
+    def startWatching(self, imdb_id, progress, episode=False):
+        return self.watching('start', imdb_id, progress, episode)
+
+    # Wrapper method that calls the watching method using 'stop' as action
+    def stopWatching(self, imdb_id, progress, episode=False):
+        return self.watching('stop', imdb_id, progress, episode)
+
+    # Wrapper method that calls the watching method using 'pause' as action
+    def pauseWatching(self, imdb_id, progress, episode=False):
+        return self.watching('pause', imdb_id, progress, episode)
+
+    # Method to cancel what was currently watched based on its imdb id
+    # and the fact it is or not an episode of a show
+    def cancelWatching(self, imdb_id, episode=False):
+        # As per the Trakt API v2, we need to call the start method
+        # saying that the watch is at the end, so it will expire
+        # soon after.
+        return self.watching('start', imdb_id, 99.99, episode)
+
+
+def main():
+    logging.basicConfig(level=logging.DEBUG)
+    tc = TraktClient("woowooslack", "passman")
+    tc._TraktClient__login()
+
+
+if __name__ == "__main__":
+    main()

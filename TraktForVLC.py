@@ -153,16 +153,18 @@ class TraktForVLC(object):
         self.log.info("Listening VLC to " + self.vlc_ip + ":" + str(self.vlc_port))
 
         # Trakt configuration
-        trakt_api = "128ecd4886c86eabe4ef13675ad10495c916381a"
+        trakt_api = "0e59f99095515c228d5fbc104e342574941aeeeda95946b8fa50b2b0366609bf"
         trakt_username = self.config.get("Trakt", "Username")
         trakt_password = self.config.get("Trakt", "Password")
 
         self.log.info("Connect to Trakt(" + trakt_username + ", *********)")
 
         # Initialize Trakt client
-        self.trakt_client = TraktClient.TraktClient(trakt_api,
-                                                    trakt_username,
-                                                    trakt_password)
+        self.trakt_client = TraktClient.TraktClient(trakt_username,
+                                                    trakt_password,
+                                                    trakt_api,
+                                                    __version__,
+                                                    time.ctime(os.path.getmtime(__file__)))
 
         self.resetCache()
 
@@ -184,6 +186,7 @@ class TraktForVLC(object):
             "series_current_ep": -1,
             "started_watching": None,
             "watching": -1,
+            "video": {},
         }
 
     def resetCacheView(self, episode = None):
@@ -224,7 +227,8 @@ class TraktForVLC(object):
                 # If we were watching a video but we didn't finish it, we
                 # have to cancel the watching status
                 if self.cache["watching"] > -1 and not self.cache["scrobbled"]:
-                    self.trakt_client.cancelWatching(tv=(self.cache['series_info'] is not None))
+                    self.trakt_client.cancelWatching(self.cache["video"]["imdbid"],
+                                                     self.cache["video"]["tv"])
 
                 # If there is something in the cache, we can purge the watching and scrobbled
                 # information, so if the video is opened again we will consider it's a new watch
@@ -270,7 +274,8 @@ class TraktForVLC(object):
             # If we were watching a video but we didn't finish it, we
             # have to cancel the watching status
             if self.cache["watching"] > -1 and not self.cache["scrobbled"]:
-                self.trakt_client.cancelWatching(tv=(self.cache['series_info'] is not None))
+                self.trakt_client.cancelWatching(self.cache["video"]["imdbid"],
+                                                 self.cache["video"]["tv"])
 
             self.resetCache(currentFileName, currentFileLength)
             self.cache['started_watching'] = (time.time(), self.vlcTime)
@@ -283,6 +288,9 @@ class TraktForVLC(object):
             self.log.info("No tv show nor movie found for the current playing video")
             vlc.close()
             return
+
+        # We cache the updated video information
+        self.cache["video"] = video
 
         logtitle = video["title"]
         if video["tv"]:
@@ -307,18 +315,10 @@ class TraktForVLC(object):
                 ):
             self.log.info("Scrobbling "+ logtitle + " to Trakt...")
             try:
-                self.trakt_client.update_media_status(video["title"],
-                                                        video["year"],
-                                                        video["imdbid"],
-                                                        video["duration"],
-                                                        video["percentage"],
-                                                        __version__,
-                                                        VLC_VERSION,
-                                                        VLC_DATE,
-                                                        tv=video["tv"],
-                                                        scrobble=True,
-                                                        season=video["season"],
-                                                        episode=video["episode"])
+                self.trakt_client.stopWatching(video["imdbid"],
+                                               video["percentage"],
+                                               video["tv"])
+
                 self.cache["scrobbled"] = True
                 self.log.info(logtitle + " scrobbled to Trakt !")
             except TraktClient.TraktError, (e):
@@ -330,22 +330,13 @@ class TraktForVLC(object):
         elif (((video['tv'] and self.DO_WATCHING_TV) or (not video['tv'] and self.DO_WATCHING_MOVIE))
                 and video["percentage"] < self.SCROBBLE_PERCENT
                 and not self.cache["scrobbled"]
-                and video["percentage"] != self.cache["watching"]
                 and (float(video["duration"]) * float(video["percentage"]) / 100.0) >= self.START_WATCHING_TIMER):
             self.log.debug("main::Trying to mark " + logtitle + " watching on Trakt...")
 
             try:
-                self.trakt_client.update_media_status(video["title"],
-                                                        video["year"],
-                                                        video["imdbid"],
-                                                        video["duration"],
-                                                        video["percentage"],
-                                                        __version__,
-                                                        VLC_VERSION,
-                                                        VLC_DATE,
-                                                        tv=video["tv"],
-                                                        season=video["season"],
-                                                        episode=video["episode"])
+                self.trakt_client.startWatching(video["imdbid"],
+                                               video["percentage"],
+                                               video["tv"])
 
                 self.log.info(logtitle + " is currently watching on Trakt...")
                 self.cache["watching"] = video["percentage"]
@@ -386,7 +377,7 @@ class TraktForVLC(object):
 
                 try:
                     episode = series[int(seasonNumber)][int(currentEpisode)]
-                    return self.set_video(True, series['seriesname'], series['firstaired'], series['imdb_id'], duration, percentage, episode['seasonnumber'], episode['episodenumber'])
+                    return self.set_video(True, series['seriesname'], series['firstaired'], episode['imdb_id'], duration, percentage, episode['seasonnumber'], episode['episodenumber'])
                 except:
                     self.log.warning("Episode : No valid episode found !")
                     self.log.debug("get_TV::Here's to help debug", exc_info=sys.exc_info())
