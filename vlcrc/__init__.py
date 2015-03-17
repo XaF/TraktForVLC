@@ -5,7 +5,7 @@ import logging
 
 class VLCBadReturn(Exception):
     def __init__(self, msg):
-        self.msg = msg
+        super(VLCBadReturn, self).__init__(msg)
 
 
 class VLCRemote(object):
