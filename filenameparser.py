@@ -288,10 +288,10 @@ for pattern in movies_filename_patterns:
 
 
 def cleanRegexedName(seriesname):
-    seriesname = re.sub("[.]", " ", seriesname)
+    seriesname = re.sub("(?<=[^. ]{2})[.]", " ", seriesname)
     seriesname = seriesname.replace("_", " ")
-    seriesname = re.sub("-$", "", seriesname)
-    return seriesname.strip()
+    seriesname = seriesname.strip("-. ")
+    return seriesname
 
 
 def parse_tv(filename):
