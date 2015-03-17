@@ -56,7 +56,8 @@ class VLCRemote(object):
         else:
             index, match, cmd_ret = self.cnx.expect([return_re], self.timeout)
             if match is None:
-                raise VLCBadReturn(err_str)
+                raise VLCBadReturn(
+                    'Pattern: %s\nReceived: %s' % (return_re.pattern, cmd_ret))
             self.log.debug('<- Received: %s' % cmd_ret.strip())
             return match
 
