@@ -69,7 +69,7 @@ class VLCRemote(object):
 
     def get_filename(self):
         fn_re = re.compile('input: file://(?P<fn>.+?) \)', re.MULTILINE)
-        match = self._command('status', fn_re)
+        match = self._command('status', fn_re, raw=True)
         fn = match.groupdict()['fn']
         fn = fn.replace('%20', ' ')
         return fn
