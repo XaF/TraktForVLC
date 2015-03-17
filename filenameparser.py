@@ -287,11 +287,11 @@ for pattern in movies_filename_patterns:
     movies_filename_regex.append(re.compile(pattern, re.VERBOSE))
 
 
-def cleanRegexedName(seriesname):
-    seriesname = re.sub("(?<=[^. ]{2})[.]", " ", seriesname)
-    seriesname = seriesname.replace("_", " ")
-    seriesname = seriesname.strip("-. ")
-    return seriesname
+def cleanRegexedName(name):
+    name = re.sub("(?<=[^. ]{2})[.]", " ", name)
+    name = name.replace("_", " ")
+    name = name.strip("-. ")
+    return name
 
 
 def parse_tv(filename):
