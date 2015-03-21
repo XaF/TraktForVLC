@@ -9,6 +9,7 @@ Password = [password]
 [TraktForVLC]
 Timer = 60
 StartWatching = 30
+UseFilenames = No
 ScrobblePercent = 90
 ScrobbleMovie = Yes
 ScrobbleTV = Yes

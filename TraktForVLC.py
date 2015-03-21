@@ -118,6 +118,9 @@ class TraktForVLC(object):
             self.TIMER_INTERVAL = int(self.config.get("TraktForVLC", "Timer"))
             self.START_WATCHING_TIMER = int(self.config.get("TraktForVLC", "StartWatching"))
 
+        # For the use of filenames instead of VLC window title
+        self.USE_FILENAME = True if self.config.get("TraktForVLC", "UseFilenames") == 'Yes' else False
+
         # Do we have to scrobble ?
         self.DO_SCROBBLE_MOVIE = True if self.config.get("TraktForVLC", "ScrobbleMovie") == 'Yes' else False
         self.DO_SCROBBLE_TV = True if self.config.get("TraktForVLC", "ScrobbleTV") == 'Yes' else False
@@ -247,7 +250,10 @@ class TraktForVLC(object):
             vlc.close()
             return
 
-        currentFileName = vlc.get_title("^(?!status change:)([^\r\n]+?)\r?\n").group(1)
+        if self.USE_FILENAME:
+            currentFileName = vlc.get_filename()
+        else:
+            currentFileName = vlc.get_title("^(?!status change:)([^\r\n]+?)\r?\n").group(1)
         self.vlcTime = int(vlc.get_time())
 
         # Parse the filename to verify if it comes from a stream
@@ -258,6 +264,10 @@ class TraktForVLC(object):
 
             # And use urllib's unquote to bring back special chars
             currentFileName = unquote(currentFileName)
+        elif self.USE_FILENAME:
+            # Even if it's not from a stream, if it's a filename we're using
+            # we need to keep only the basename of the parsed path
+            currentFileName = os.path.basename(currentFileName)
 
         if (currentFileName == self.cache["vlc_file_name"]
                 and currentFileLength == self.cache['vlc_file_length']):
