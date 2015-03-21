@@ -152,13 +152,51 @@ class TraktClient(object):
         return
 
     # Define an item as started, stopped or paused watching using
-    # its imdb id, its progress and the fact it is or not an episode
-    # of a tv show
-    def watching(self, action, imdb_id, progress, episode=False, retry=False):
+    # data passed as argument to identify that item
+    def __scrobble(self, action, data, retry=False):
         # Only three actions allowed
         action = action.lower()
         if action not in ('start', 'stop', 'pause'):
             raise TraktError("action '%s' unknown" % action)
+
+        # We call scrobble/x where x is one of the actions, using the
+        # call_method method.
+        stream = self.call_method('scrobble/%s' % action, 'POST', data)
+
+        # If the answer is not 200 nor 201
+        if not stream.ok:
+            # If it was a 401 HTTP error, we need to authenticate, then
+            # we can call again that function. We try again just one time
+            # in case the 401 error was not due to authentication
+            if not retry and stream.status_code == 401:
+                self.__login()
+                self.__scrobble(action, data, True)
+                return
+
+            # If it was another error, we raise an error, as it's not normal
+            videotype = ("episode" if "episode" in data else "movie")
+            raise TraktError("Unable to %s %s: %s (%s %s)" % (
+                action, videotype, stream.error, stream.status_code,
+                stream.reason))
+        else:
+            # Else, we just return the potential json response from the server
+            return stream.json
+
+    # Define an item as started, stopped or paused watching using
+    # its imdb id, its progress and the fact it is or not an episode
+    # of a tv show. This method either calls the __scrobble one after
+    # having generated the data dict, or the __watchingEpisode one if
+    # the item is an episode and the given episode variable is a
+    # tuple containing in order the show's imdb id, the season number
+    # and the episode number.
+    def __watching(self, action, imdb_id, progress, episode=False):
+        # If episode is a tuple, we will call __watchingEpisode
+        if episode and type(episode) == tuple and len(episode) == 3:
+            return self.__watchingEpisode(action=action,
+                                          show_imdb_id=episode[0],
+                                          season=episode[1],
+                                          episode=episode[2],
+                                          progress=progress)
 
         # We prepare the data to send
         videotype = ("episode" if episode else "movie")
@@ -173,39 +211,43 @@ class TraktClient(object):
             "app_date":     self.app_date,
         }
 
-        # We call scrobble/x where x is one of the actions, using the
-        # call_method method.
-        stream = self.call_method('scrobble/%s' % action, 'POST', data)
+        return self.__scrobble(action, data)
 
-        # If the answer is not 200 nor 201
-        if not stream.ok:
-            # If it was a 401 HTTP error, we need to authenticate, then
-            # we can call again that function. We try again just one time
-            # in case the 401 error was not due to authentication
-            if not retry and stream.status_code == 401:
-                self.__login()
-                self.watching(action, imdb_id, progress, episode, True)
-                return
+    # Define an episode as started, stopped or paused watching using
+    # its show's imdb id, its season number, its episode number, and
+    # its progress. This method calls the __scrobble one after having
+    # generated the data dict
+    def __watchingEpisode(self, action, show_imdb_id,
+                          season, episode, progress):
+        # We prepare the data to send
+        data = {
+            "show": {
+                "ids": {
+                    "imdb": show_imdb_id,
+                }
+            },
+            "episode": {
+                "season":   season,
+                "number":   episode,
+            },
+            "progress":     progress,
+            "app_version":  self.app_version,
+            "app_date":     self.app_date,
+        }
 
-            # If it was another error, we raise an error, as it's not normal
-            raise TraktError("Unable to %s %s: %s (%s %s)" % (
-                action, videotype, stream.error, stream.status_code,
-                stream.reason))
-        else:
-            # Else, we just return the potential json response from the server
-            return stream.json
+        return self.__scrobble(action, data)
 
     # Wrapper method that calls the watching method using 'start' as action
     def startWatching(self, imdb_id, progress, episode=False):
-        return self.watching('start', imdb_id, progress, episode)
+        return self.__watching('start', imdb_id, progress, episode)
 
     # Wrapper method that calls the watching method using 'stop' as action
     def stopWatching(self, imdb_id, progress, episode=False):
-        return self.watching('stop', imdb_id, progress, episode)
+        return self.__watching('stop', imdb_id, progress, episode)
 
     # Wrapper method that calls the watching method using 'pause' as action
     def pauseWatching(self, imdb_id, progress, episode=False):
-        return self.watching('pause', imdb_id, progress, episode)
+        return self.__watching('pause', imdb_id, progress, episode)
 
     # Method to cancel what was currently watched based on its imdb id
     # and the fact it is or not an episode of a show
@@ -213,7 +255,7 @@ class TraktClient(object):
         # As per the Trakt API v2, we need to call the start method
         # saying that the watch is at the end, so it will expire
         # soon after.
-        return self.watching('start', imdb_id, 99.99, episode)
+        return self.__watching('start', imdb_id, 99.99, episode)
 
 
 def main():

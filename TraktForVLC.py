@@ -231,7 +231,7 @@ class TraktForVLC(object):
                 # have to cancel the watching status
                 if self.cache["watching"] > -1 and not self.cache["scrobbled"]:
                     self.trakt_client.cancelWatching(self.cache["video"]["imdbid"],
-                                                     self.cache["video"]["tv"])
+                                                     self.get_episode(self.cache["video"]))
 
                 # If there is something in the cache, we can purge the watching and scrobbled
                 # information, so if the video is opened again we will consider it's a new watch
@@ -285,7 +285,7 @@ class TraktForVLC(object):
             # have to cancel the watching status
             if self.cache["watching"] > -1 and not self.cache["scrobbled"]:
                 self.trakt_client.cancelWatching(self.cache["video"]["imdbid"],
-                                                 self.cache["video"]["tv"])
+                                                 self.get_episode(self.cache["video"]))
 
             self.resetCache(currentFileName, currentFileLength)
             self.cache['started_watching'] = (time.time(), self.vlcTime)
@@ -327,7 +327,7 @@ class TraktForVLC(object):
             try:
                 self.trakt_client.stopWatching(video["imdbid"],
                                                video["percentage"],
-                                               video["tv"])
+                                               self.get_episode(video))
 
                 self.cache["scrobbled"] = True
                 self.log.info(logtitle + " scrobbled to Trakt !")
@@ -345,8 +345,8 @@ class TraktForVLC(object):
 
             try:
                 self.trakt_client.startWatching(video["imdbid"],
-                                               video["percentage"],
-                                               video["tv"])
+                                                video["percentage"],
+                                                self.get_episode(video))
 
                 self.log.info(logtitle + " is currently watching on Trakt...")
                 self.cache["watching"] = video["percentage"]
@@ -354,6 +354,15 @@ class TraktForVLC(object):
                 self.log.error("An error occurred while trying to mark as watching " + logtitle, exc_info=sys.exc_info())
 
         vlc.close()
+
+    def get_episode(self, video):
+        episode = video["tv"]
+        if episode and not video["imdbid"]:
+            episode = (video["show_imdbid"],
+                       video["season"],
+                       video["episode"])
+
+        return episode
 
     def get_TV(self, vlc, series_info = (None, None, None)):
         try:
@@ -387,7 +396,7 @@ class TraktForVLC(object):
 
                 try:
                     episode = series[int(seasonNumber)][int(currentEpisode)]
-                    return self.set_video(True, series['seriesname'], series['firstaired'], episode['imdb_id'], duration, percentage, episode['seasonnumber'], episode['episodenumber'])
+                    return self.set_video(True, series['seriesname'], series['firstaired'], episode['imdb_id'], duration, percentage, episode['seasonnumber'], episode['episodenumber'], series['imdb_id'])
                 except:
                     self.log.warning("Episode : No valid episode found !")
                     self.log.debug("get_TV::Here's to help debug", exc_info=sys.exc_info())
@@ -462,7 +471,7 @@ class TraktForVLC(object):
             return False
         return False
 
-    def set_video(self, tv, title, year, imdbid, duration, percentage, season = -1, episode = -1):
+    def set_video(self, tv, title, year, imdbid, duration, percentage, season = -1, episode = -1, show_imdbid = None):
         video = {
                 'tv': tv,
                 'title': title,
@@ -472,6 +481,7 @@ class TraktForVLC(object):
                 'percentage': percentage,
                 'season': season,
                 'episode': episode,
+                'show_imdbid': show_imdbid,
                 }
         return video
 
