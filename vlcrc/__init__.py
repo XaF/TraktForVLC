@@ -116,7 +116,6 @@ class VLCRemote(object):
         return dictinfo
 
     def get_status(self):
-        fn_re = re.compile('(?P<status>.+)')
         status = self._command('status')
         return status
 
