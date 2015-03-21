@@ -23,7 +23,7 @@
 # Imports
 import logging
 import requests
-import simplejson as json
+import json
 
 
 # Trakt API URL for v2
@@ -90,7 +90,7 @@ class TraktClient(object):
         # We prepare the URL we'll connect to
         sendurl = api_url + method
 
-        # We encode the data using simplejson's dumps method
+        # We encode the data using json's dumps method
         encoded_data = json.dumps(data)
 
         self.log.debug("Sending %s to %s data %s" %
