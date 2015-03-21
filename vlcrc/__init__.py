@@ -136,9 +136,12 @@ class VLCRemote(object):
     def next(self):
         self._command('next')
 
-    def get_title(self, regex):
-        fn_re = re.compile(regex, re.IGNORECASE | re.MULTILINE)
+    def get_title(self):
+        fn_re = re.compile(
+            '^(?!status change:)>?\s*(?P<title>[^\r\n]+?)\r?\n',
+            re.IGNORECASE | re.MULTILINE)
         title = self._command('get_title', fn_re, raw=True)
+        title = title.groupdict()['title']
         return title
 
     def is_playing(self):

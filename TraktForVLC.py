@@ -253,7 +253,7 @@ class TraktForVLC(object):
         if self.USE_FILENAME:
             currentFileName = vlc.get_filename()
         else:
-            currentFileName = vlc.get_title("^(?!status change:)([^\r\n]+?)\r?\n").group(1)
+            currentFileName = vlc.get_title()
         self.vlcTime = int(vlc.get_time())
 
         # Parse the filename to verify if it comes from a stream
