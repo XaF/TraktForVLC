@@ -20,9 +20,10 @@
 # Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 # or see <http://www.gnu.org/licenses/>.
 
-import telnetlib
-import re
+# Imports
 import logging
+import re
+import telnetlib
 from time import sleep
 
 
