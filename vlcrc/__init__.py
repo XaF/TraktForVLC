@@ -117,10 +117,11 @@ class VLCRemote(object):
         return match
 
     def get_filename(self):
-        fn_re = re.compile('input: file://(?P<fn>.+?) \)', re.MULTILINE)
+        fn_re = re.compile(
+            'input: (?P<path>(?P<ptcl>[a-z]*)://(?P<fn>.+?)) \)',
+            re.IGNORECASE | re.MULTILINE)
         match = self._command('status', fn_re, raw=True)
-        fn = match.groupdict()['fn']
-        fn = fn.replace('%20', ' ')
+        fn = match.groupdict()['path']
         return fn
 
     def restart(self):
