@@ -162,11 +162,12 @@ class TraktForVLC(object):
         self.log.info("Connect to Trakt(" + trakt_username + ", *********)")
 
         # Initialize Trakt client
+        modifiedTime = time.strftime('%Y-%m-%d', time.gmtime(os.path.getmtime(__file__)))
         self.trakt_client = TraktClient.TraktClient(trakt_username,
                                                     trakt_password,
                                                     trakt_api,
                                                     __version__,
-                                                    time.ctime(os.path.getmtime(__file__)))
+                                                    modifiedTime)
 
         self.resetCache()
 
