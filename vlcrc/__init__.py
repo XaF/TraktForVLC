@@ -1,6 +1,7 @@
 import telnetlib
 import re
 import logging
+from time import sleep
 
 
 class VLCBadReturn(Exception):
@@ -14,6 +15,31 @@ class VLCRemote(object):
         self.cnx = telnetlib.Telnet(hostname, port)
         self.log = logging.getLogger('VLCRemote')
         self.timeout = timeout
+
+        # False if we're using OLDRC, True if we're using RC
+        self.vlcrc = False
+
+        # Open connexion
+        self.cnx.open(hostname, port)
+
+        # We want to be sure we have received the greetings
+        # FIXME: if there's another cleaner way!
+        sleep(0.00001)
+
+        # Verify if there is any welcome message
+        cached = self.cnx.read_very_eager()
+
+        # If there is, we are most probably using the 'rc' module,
+        # and not 'oldrc'. We can thus identify the version of VLC
+        # being used
+        self.vlcversion = None
+        if cached != '':
+            version = re.findall(
+                '((?:[0-9]+\.){2}[0-9]+(?:-[a-zA-Z0-9]+)?)', cached)
+            if version:
+                self.vlcrc = True
+                self.vlcversion = version[0]
+                self.log.debug('VLC version is %s' % self.vlcversion)
 
     def _command(self, cmd, return_re=None, raw=False, args=None):
 
@@ -137,3 +163,20 @@ class VLCRemote(object):
 
     def close(self):
         self.cnx.close()
+
+if __name__ == "__main__":
+    vlc = VLCRemote("localhost", 4222)
+
+    if vlc.vlcversion is not None:
+        print "VLC version is %s" % vlc.vlcversion
+    else:
+        print "VLC version is unknown"
+
+    if vlc.is_playing():
+        print "The title of the VLC window is:", vlc.get_title()
+        if vlc.vlcrc:
+            print "The file currently opened is:", vlc.get_filename()
+    else:
+        print "Nothing is currently playing"
+
+    vlc.close()
