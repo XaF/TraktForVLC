@@ -22,11 +22,11 @@ itself based on the original [quietcore's TraktForVLC] [4].
 
 ### Licence
 
-Copyright (C) 2012      quietcore
+Copyright (C) 2012       Chris Maclellan <<chrismaclellan@gmail.com>>
 
-Copyright (C) 2013      Damien Battistella
+Copyright (C) 2013       Damien Battistella <<wifsimster@gmail.com>>
 
-Copyright (C) 2014      Raphaël Beamonte
+Copyright (C) 2014-2015  Raphaël Beamonte <<raphael.beamonte@gmail.com>>
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -49,7 +49,10 @@ but I'm open to pull requests on this side, as we're here to
 share.
 
 #### Python version
-This version of TraktForVLC has been tested using Python 2.7.7
+This version of TraktForVLC has been tested using Python 2.7.9
+
+### VLC version
+This version of TraktForVLC has been tested using VLC 2.2.0 Weatherwax
 
 ### Getting sources
 To get the sources, you only need to clone the repository using
@@ -75,8 +78,12 @@ left, go to:
 + **Interface**
 + **Main interfaces**
 
-Here, in the list of **Extra interface modules**, check **Telnet**
-and **Remote control interface**.
+Here, in the list of **Extra interface modules**, check **Remote control interface**.
+
+> **WARNING** in some versions of VLC, when checking **Remote control interface**,
+> you will see **oldrc** appearing in the lines below. If it is the case, please
+> edit manually that line to read **rc** instead. TraktForVLC can use **oldrc**,
+> but the behavior of **rc** is much more predictable thus preferable.
 
 Then, go to:
 + **RC** (submenu of **Main interfaces**)
@@ -97,8 +104,43 @@ the `vlc` at start by the path to your [VLC] executable (usually
 `vlc.exe` on Windows).
 
 ```sh
-vlc --extraintf=rc --rc-host=localhost:4222 --rc-quiet
+vlc --extraintf=rc --rc-host=localhost:4222
 ```
+
+On [Windows] [7], you can also add the ```--rc-quiet``` option
+to disable the console.
+
+### Automatic configuration on Windows (without guarantee)
+
+The ```windows_batch/``` directory of this repository contains different
+batch files. The file ```set_registry_keys.bat``` should allow to
+automatically configure your system to open some multimedia files with
+VLC and with the right options.
+
+The ```config.bat``` file allows to configure which multimedia files are
+concerned, and other options needed before running the ```set_registry_keys.bat```:
+
+```batch
+:::: Configuration to set the registry keys
+:: Set the full path to the VLC exe file on your computer
+set vlc_path=C:\your\path\to\VideoLAN\VLC\vlc.exe
+
+:: Set the IP address VLC will listen to (default: localhost)
+set ip=localhost
+
+:: Set the port VLC will listen to (default: 4222)
+set port=4222
+
+:: Set the file formats for which you want VLC to be start
+:: listening to remote control for TraktForVLC to work. You
+:: can add as much format as you want, all format must be
+:: separated by a coma.
+set formats=avi, mkv, mov, mp4, wmv, ts, mpg
+```
+
+Configure those options carefully, then run (double-click for instance) the
+```set_registry_keys.bat``` file. VLC should then be ready, you can now
+[configure TraktForVLC](#Configuring TraktForVLC).
 
 ### Configuring TraktForVLC
 
@@ -129,6 +171,7 @@ your account, update your current watching and scrobble when necessary.
 [TraktForVLC]
 Timer = 60                  # Time (sec) between each loop and look of TraktForVLC
 StartWatching = 30          # Time (sec) before considering a video is currently watched
+UseFilenames = No           # Whether or not to use filenames instead of VLC window title
 ScrobblePercent = 90        # Percentage (%) of the video to be spent before scrobbling it
 ScrobbleMovie = Yes         # Whether or not TraktForVLC will automatically scrobble movies
 ScrobbleTV = Yes            # Whether or not TraktForVLC will automatically scrobble tv shows
@@ -173,6 +216,15 @@ open your session.
 ### Issues
 Please use the [GitHub integrated issue tracker] [9] for every problem you can
 encounter. Please **DO NOT** use my email for issues or walkthrough.
+
+When submitting an issue, please submit a TraktForVLC logfile showing the error.
+You can start TraktForVLC in debug mode (```--debug``` option) to obtain more
+thorough logs and with small timers (```--small-timers``` option) to speed up its
+internal loop. The resulting logfile (```TraktForVLC-DEBUG.log```) should then be
+available in your ```logs/``` directory.
+
+> **Please** be careful to remove any personnal information that could still be in
+> the logfile (password, identification token, ...) before putting your file online.
 
 
 
