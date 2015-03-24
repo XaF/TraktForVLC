@@ -175,14 +175,19 @@ class TraktForVLC(object):
                             stream=sys.stdout)
 
         self.log = logging.getLogger("TraktForVLC")
-        self.log.info("----------------------------------------------------------------------------")
-        self.log.info("                        TraktForVLC v" + __version__ + " by XaF")
-        self.log.info("                           Last update : 07/28/2014")
-        self.log.info("                        contact : raphael.beamonte@gmail.com")
-        self.log.info("              Description : Allow scrobbling VLC content to Trakt")
-        self.log.info("          Download : https://github.com/XaF/TraktForVLC.git")
-        self.log.info("----------------------------------------------------------------------------")
-        self.log.info("Initializing Trakt for VLC...")
+
+        self.log.info(
+            "## TraktForVLC v" + __version__ + " " + __release_name__)
+        self.log.info("## Copyright (C) 2014-2015  " +
+                      "Raphaël Beamonte <raphael.beamonte@gmail.com>")
+        self.log.info("##")
+        self.log.info("## TraktForVLC is distributed in the hope that it " +
+                      "will be useful, but")
+        self.log.info("## with ABSOLUTELY NO WARRANTY. This is free " +
+                      "software; you are welcome")
+        self.log.info("## to redistribute and/or modify it under the terms " +
+                      "of the GPL2.")
+        self.log.info("")
 
         if not os.path.isfile(configfile):
             self.log.error("Config file " + configfile + " not found, exiting.")
