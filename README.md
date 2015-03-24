@@ -110,7 +110,7 @@ vlc --extraintf=rc --rc-host=localhost:4222
 On [Windows] [7], you can also add the ```--rc-quiet``` option
 to disable the console.
 
-### Automatic configuration on Windows (without guarantee)
+#### Automatic configuration on Windows (without guarantee)
 
 The ```windows_batch/``` directory of this repository contains different
 batch files. The file ```set_registry_keys.bat``` should allow to
@@ -140,7 +140,7 @@ set formats=avi, mkv, mov, mp4, wmv, ts, mpg
 
 Configure those options carefully, then run (double-click for instance) the
 ```set_registry_keys.bat``` file. VLC should then be ready, you can now
-[configure TraktForVLC](#Configuring TraktForVLC).
+[configure TraktForVLC](#configuring-traktforvlc).
 
 ### Configuring TraktForVLC
 
