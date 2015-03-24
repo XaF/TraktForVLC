@@ -1,6 +1,31 @@
 TraktForVLC
 ===========
 
+## Table of Contents
+
+  * [Presentation](#presentation)
+  * [Information](#information)
+    * [Credits](#credits)
+    * [Licence](#licence)
+  * [Installation](#installation)
+    * [Compatibility](#compatibility)
+      * [Operating System](#operating-system)
+      * [Python version](#python-version)
+      * [VLC version](#vlc-version)
+    * [Getting sources](#getting-sources)
+    * [Configuring VLC](#configuring-vlc)
+      * [With VLC Settings](#with-vlc-settings)
+      * [With command line](#with-command-line)
+      * [Automatic configuration on Windows (without guarantee)](#automatic-configuration-on-windows-without-guarantee)
+    * [Configuring TraktForVLC](#configuring-traktforvlc)
+    * [Automatic start](#automatic-start)
+      * [On Linux](#on-linux)
+        * [Using Gnome](#using-gnome)
+        * [Using .bashrc](#using-bashrc)
+      * [On Windows](#on-windows)
+        * [Using scheduled tasks](#using-scheduled-tasks)
+    * [Issues](#issues)
+
 ## Presentation
 
 TraktForVLC allows scrobbling [VLC] content to [trakt.tv] [1].
@@ -51,7 +76,7 @@ share.
 #### Python version
 This version of TraktForVLC has been tested using Python 2.7.9
 
-### VLC version
+#### VLC version
 This version of TraktForVLC has been tested using VLC 2.2.0 Weatherwax
 
 ### Getting sources
