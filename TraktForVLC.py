@@ -27,7 +27,9 @@ import datetime
 import getopt
 import logging
 import os
+from pkg_resources import parse_version
 import re
+import requests
 import signal
 import sys
 import time
@@ -45,7 +47,7 @@ from vlcrc import VLCRemote
 
 
 __release_name__ = "Six Feet Under"
-__version_info__ = (1, 1, 0, ' '+__release_name__, 0)
+__version_info__ = (1, 1, 0, '', 0)
 __version__ = "%d.%d.%d%s" % __version_info__[:4]
 
 TIMER_INTERVAL = START_WATCHING_TIMER = 0
@@ -70,6 +72,85 @@ LOG_LEVEL = logging.WARNING
 SMALL_TIMERS = False
 
 class TraktForVLC(object):
+
+    # Check if there's a newer version of TraktForVLC on the project's github,
+    # and print informations on that subject in the logs
+    def __check_version(self):
+        # The leading information for lines printed by this method in logs
+        lead = "VERSION:"
+
+        # Request the github API to get the releases information
+        github_releases = requests.get(
+            url="https://api.github.com/repos/XaF/TraktForVLC/releases")
+
+        # If there was a problem getting the releases
+        if not github_releases.ok:
+            self.log.error(lead +
+                           "Unable to verify new releases of TraktForVLC")
+            return
+
+        # Else, we get the json answer
+        releases = github_releases.json
+
+        # If we didn't find any release
+        if not releases:
+            self.log.warning(lead +
+                             "No releases found on github")
+            return
+
+        # We get the latest release, all included
+        newest = sorted(
+            releases,
+            key=lambda x: x['tag_name'],
+            reverse=True)[0]
+        newest_V = parse_version(newest['tag_name'])
+        if newest_V[0] == '*v':
+            newest_V = newest_V[1:]
+
+        # We get the latest _stable_ release
+        newest_stbl = sorted(
+            [r for r in releases if not r['prerelease']],
+            key=lambda x: x['tag_name'],
+            reverse=True)[0]
+        newest_stbl_V = parse_version(newest_stbl['tag_name'])
+        if newest_stbl_V[0] == '*v':
+            newest_stbl_V = newest_stbl_V[1:]
+
+        # We parse the current version
+        current_V = parse_version(__version__)
+
+        if newest_V <= current_V:
+            self.log.info(lead + "TraktForVLC is up to date")
+            return
+
+        # We only show the latest stable release if
+        # it's newer than our current release
+        if newest_stbl_V > current_V:
+            # We reformat the publication date of the release
+            published = datetime.datetime.strptime(
+                newest_stbl['published_at'],
+                "%Y-%m-%dT%H:%M:%SZ").strftime('%c')
+
+            self.log.info(lead + "##### RELEASE #####")
+            self.log.info(lead + "## Stable release %(name)s" % newest_stbl)
+            self.log.info(lead + "## Published on %s" % published)
+            self.log.info(lead + "## Available on %(html_url)s" % newest_stbl)
+
+        # We only show the latest release if it's not
+        # also the latest stable release
+        if newest_V > newest_stbl_V:
+            # We reformat the publication date of the release
+            published = datetime.datetime.strptime(
+                newest['published_at'],
+                "%Y-%m-%dT%H:%M:%SZ").strftime('%c')
+
+            self.log.info(lead + "##### RELEASE #####")
+            self.log.info(lead + "## Prerelease %(name)s" % newest)
+            self.log.info(lead + "## Published on %s" % published)
+            self.log.info(lead + "## Available on %(html_url)s" % newest)
+
+        self.log.info(lead + "###################")
+
 
     def __init__(self, datadir, configfile):
 
@@ -106,6 +187,8 @@ class TraktForVLC(object):
         if not os.path.isfile(configfile):
             self.log.error("Config file " + configfile + " not found, exiting.")
             exit()
+
+        self.__check_version()
 
         self.config = ConfigParser.RawConfigParser()
         self.config.read(configfile)
