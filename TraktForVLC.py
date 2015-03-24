@@ -57,19 +57,20 @@ DATETIME = datetime.datetime.now()
 
 # Available log levels
 AVAILABLE_LOGLVL = [
-        (logging.NOTSET,    'NOTSET'),      # 0
-        (logging.DEBUG,     'DEBUG'),       # 10
-        (logging.INFO,      'INFO'),        # 20
-        (logging.WARNING,   'WARNING'),     # 30
-        (logging.ERROR,     'ERROR'),       # 40
-        (logging.CRITICAL,  'CRITICAL'),    # 50
-        ]
+    (logging.NOTSET,    'NOTSET'),      # 0
+    (logging.DEBUG,     'DEBUG'),       # 10
+    (logging.INFO,      'INFO'),        # 20
+    (logging.WARNING,   'WARNING'),     # 30
+    (logging.ERROR,     'ERROR'),       # 40
+    (logging.CRITICAL,  'CRITICAL'),    # 50
+]
 
 # Specify default log level
 LOG_LEVEL = logging.WARNING
 
 # Use small timers, useful in debug mode
 SMALL_TIMERS = False
+
 
 class TraktForVLC(object):
 
@@ -151,7 +152,6 @@ class TraktForVLC(object):
 
         self.log.info(lead + "###################")
 
-
     def __init__(self, datadir, configfile):
 
         # Verify if the log directory exists or create it
@@ -167,12 +167,15 @@ class TraktForVLC(object):
             if os.path.isfile(logfile):
                 os.remove(logfile)
         else:
-            logfile = os.path.join(logdir, "TraktForVLC-" + DATETIME.strftime("%y-%m-%d-%H-%M") + ".log")
+            logfile = os.path.join(
+                logdir,
+                "TraktForVLC-" + DATETIME.strftime("%y-%m-%d-%H-%M") + ".log")
 
-        logging.basicConfig(format="%(asctime)s::%(name)s::%(levelname)s::%(message)s",
-                            level=LOG_LEVEL,
-                            filename=logfile,
-                            stream=sys.stdout)
+        logging.basicConfig(
+            format="%(asctime)s::%(name)s::%(levelname)s::%(message)s",
+            level=LOG_LEVEL,
+            filename=logfile,
+            stream=sys.stdout)
 
         self.log = logging.getLogger("TraktForVLC")
 
@@ -190,7 +193,9 @@ class TraktForVLC(object):
         self.log.info("")
 
         if not os.path.isfile(configfile):
-            self.log.error("Config file " + configfile + " not found, exiting.")
+            self.log.error("Config file " +
+                           configfile +
+                           " not found, exiting.")
             exit()
 
         self.__check_version()
@@ -204,21 +209,33 @@ class TraktForVLC(object):
             self.START_WATCHING_TIMER = 5
         else:
             self.TIMER_INTERVAL = int(self.config.get("TraktForVLC", "Timer"))
-            self.START_WATCHING_TIMER = int(self.config.get("TraktForVLC", "StartWatching"))
+            self.START_WATCHING_TIMER = int(
+                self.config.get("TraktForVLC", "StartWatching"))
 
         # For the use of filenames instead of VLC window title
-        self.USE_FILENAME = True if self.config.get("TraktForVLC", "UseFilenames") == 'Yes' else False
+        self.USE_FILENAME = (
+            True if self.config.get("TraktForVLC", "UseFilenames") == 'Yes'
+            else False)
 
         # Do we have to scrobble ?
-        self.DO_SCROBBLE_MOVIE = True if self.config.get("TraktForVLC", "ScrobbleMovie") == 'Yes' else False
-        self.DO_SCROBBLE_TV = True if self.config.get("TraktForVLC", "ScrobbleTV") == 'Yes' else False
+        self.DO_SCROBBLE_MOVIE = (
+            True if self.config.get("TraktForVLC", "ScrobbleMovie") == 'Yes'
+            else False)
+        self.DO_SCROBBLE_TV = (
+            True if self.config.get("TraktForVLC", "ScrobbleTV") == 'Yes'
+            else False)
 
         # Do we have to mark as watching ?
-        self.DO_WATCHING_MOVIE = True if self.config.get("TraktForVLC", "WatchingMovie") == 'Yes' else False
-        self.DO_WATCHING_TV = True if self.config.get("TraktForVLC", "WatchingTV") == 'Yes' else False
+        self.DO_WATCHING_MOVIE = (
+            True if self.config.get("TraktForVLC", "WatchingMovie") == 'Yes'
+            else False)
+        self.DO_WATCHING_TV = (
+            True if self.config.get("TraktForVLC", "WatchingTV") == 'Yes'
+            else False)
 
         # What percent should we use to scrobble videos ?
-        self.SCROBBLE_PERCENT = int(self.config.get("TraktForVLC", "ScrobblePercent"))
+        self.SCROBBLE_PERCENT = int(
+            self.config.get("TraktForVLC", "ScrobblePercent"))
 
         for loglvl, logstr in AVAILABLE_LOGLVL:
             if LOG_LEVEL <= loglvl:
@@ -227,30 +244,44 @@ class TraktForVLC(object):
         if loglevelstr is None:
             loglevelstr = str(LOG_LEVEL)
 
-        self.log.info("Logger level is set to %s" % loglevelstr);
-        self.log.info("-- Will scrobble movies ? %s" % ('Yes' if self.DO_SCROBBLE_MOVIE else 'No'))
-        self.log.info("-- Will scrobble tv shows ? %s" % ('Yes' if self.DO_SCROBBLE_TV else 'No'))
-        self.log.info("-- Will we mark movies as being watched ? %s" % ('Yes' if self.DO_WATCHING_MOVIE else 'No'))
-        self.log.info("-- Will we mark tv shows as being watched ? %s" % ('Yes' if self.DO_WATCHING_TV else 'No'))
-        self.log.info("-- Videos will be scrobbled after " + str(self.SCROBBLE_PERCENT) + "% of their duration has been exceeded")
-        self.log.info("-- Timer set to " + str(self.TIMER_INTERVAL) + " secs")
-        self.log.info("-- Video will be marked as \"is watching\" from " + str(self.START_WATCHING_TIMER) + " secs")
+        self.log.info("Logger level is set to %s" % loglevelstr)
+        self.log.info("-- Will scrobble movies ? %s" % (
+            'Yes' if self.DO_SCROBBLE_MOVIE else 'No'))
+        self.log.info("-- Will scrobble tv shows ? %s" % (
+            'Yes' if self.DO_SCROBBLE_TV else 'No'))
+        self.log.info("-- Will we mark movies as being watched ? %s" % (
+            'Yes' if self.DO_WATCHING_MOVIE else 'No'))
+        self.log.info("-- Will we mark tv shows as being watched ? %s" % (
+            'Yes' if self.DO_WATCHING_TV else 'No'))
+        self.log.info("-- Videos will be scrobbled after " +
+                      str(self.SCROBBLE_PERCENT) +
+                      "% of their duration has been exceeded")
+        self.log.info("-- Timer set to " +
+                      str(self.TIMER_INTERVAL) +
+                      " secs")
+        self.log.info("-- Video will be marked as \"is watching\" from " +
+                      str(self.START_WATCHING_TIMER) +
+                      " secs")
 
         # VLC configuration
         self.vlc_ip = self.config.get("VLC", "IP")
         self.vlc_port = self.config.getint("VLC", "Port")
 
-        self.log.info("Listening VLC to " + self.vlc_ip + ":" + str(self.vlc_port))
+        self.log.info("Listening VLC to " +
+                      self.vlc_ip + ":" + str(self.vlc_port))
 
         # Trakt configuration
-        trakt_api = "0e59f99095515c228d5fbc104e342574941aeeeda95946b8fa50b2b0366609bf"
+        trakt_api = ("0e59f99095515c228d5fbc104e342574" +
+                     "941aeeeda95946b8fa50b2b0366609bf")
         trakt_username = self.config.get("Trakt", "Username")
         trakt_password = self.config.get("Trakt", "Password")
 
         self.log.info("Connect to Trakt(" + trakt_username + ", *********)")
 
         # Initialize Trakt client
-        modifiedTime = time.strftime('%Y-%m-%d', time.gmtime(os.path.getmtime(__file__)))
+        modifiedTime = time.strftime(
+            '%Y-%m-%d',
+            time.gmtime(os.path.getmtime(__file__)))
         self.trakt_client = TraktClient.TraktClient(trakt_username,
                                                     trakt_password,
                                                     trakt_api,
@@ -266,7 +297,7 @@ class TraktForVLC(object):
         self.vlcTime = 0
         self.vlc_connected = True
 
-    def resetCache(self, filename = None, filelength = None):
+    def resetCache(self, filename=None, filelength=None):
         self.log.debug("reset cache (%s, %s)" % (filename, filelength))
         self.cache = {
             "vlc_file_name": filename,
@@ -280,7 +311,7 @@ class TraktForVLC(object):
             "video": {},
         }
 
-    def resetCacheView(self, episode = None):
+    def resetCacheView(self, episode=None):
         self.log.debug('reset cache view status (%s)' % episode)
 
         self.cache['watching'] = -1
@@ -301,7 +332,9 @@ class TraktForVLC(object):
             try:
                 self.main()
             except Exception, e:
-                self.log.error("An unknown error occurred", exc_info=sys.exc_info())
+                self.log.error(
+                    "An unknown error occurred",
+                    exc_info=sys.exc_info())
             time.sleep(self.TIMER_INTERVAL)
         self.main()
 
@@ -311,18 +344,24 @@ class TraktForVLC(object):
             self.vlc_connected = True
         except:
             if self.vlc_connected:
-                self.log.info('Could not find VLC running at ' + str(self.vlc_ip) + ':'+ str(self.vlc_port))
-                self.log.debug('Make sure your VLC player is running with --extraintf=rc --rc-host='+ str(self.vlc_ip) +':' + str(self.vlc_port) + ' --rc-quiet', exc_info=sys.exc_info())
+                self.log.info('Could not find VLC running at ' +
+                              str(self.vlc_ip) + ':' + str(self.vlc_port))
+                self.log.debug('Make sure your VLC player is running with ' +
+                               '--extraintf=rc --rc-host=' +
+                               str(self.vlc_ip) + ':' + str(self.vlc_port) +
+                               ' --rc-quiet', exc_info=sys.exc_info())
                 self.vlc_connected = False
 
                 # If we were watching a video but we didn't finish it, we
                 # have to cancel the watching status
                 if self.cache["watching"] > -1 and not self.cache["scrobbled"]:
-                    self.trakt_client.cancelWatching(self.cache["video"]["imdbid"],
-                                                     self.get_episode(self.cache["video"]))
+                    self.trakt_client.cancelWatching(
+                        self.cache["video"]["imdbid"],
+                        self.get_episode(self.cache["video"]))
 
-                # If there is something in the cache, we can purge the watching and scrobbled
-                # information, so if the video is opened again we will consider it's a new watch
+                # If there is something in the cache, we can purge the watching
+                # and scrobbled information, so if the video is opened again we
+                # will consider it's a new watch
                 if self.cache['vlc_file_name'] is not None:
                     self.resetCacheView()
 
@@ -360,20 +399,23 @@ class TraktForVLC(object):
 
         if (currentFileName == self.cache["vlc_file_name"]
                 and currentFileLength == self.cache['vlc_file_length']):
-            if self.cache["series_info"] is None and self.cache["movie_info"] is None:
+            if (self.cache["series_info"] is None
+                    and self.cache["movie_info"] is None):
                 video = None
             elif self.cache["series_info"] is not None:
                 video = self.get_TV(vlc, self.cache["series_info"])
             else:
                 video = self.get_Movie(vlc, self.cache["movie_info"])
         else:
-            self.log.debug("main::New file: %s (%s)" % (currentFileName, currentFileLength))
+            self.log.debug("main::New file: %s (%s)"
+                           % (currentFileName, currentFileLength))
 
             # If we were watching a video but we didn't finish it, we
             # have to cancel the watching status
             if self.cache["watching"] > -1 and not self.cache["scrobbled"]:
-                self.trakt_client.cancelWatching(self.cache["video"]["imdbid"],
-                                                 self.get_episode(self.cache["video"]))
+                self.trakt_client.cancelWatching(
+                    self.cache["video"]["imdbid"],
+                    self.get_episode(self.cache["video"]))
 
             self.resetCache(currentFileName, currentFileLength)
             self.cache['started_watching'] = (time.time(), self.vlcTime)
@@ -383,7 +425,8 @@ class TraktForVLC(object):
                 video = self.get_Movie(vlc)
 
         if video is None:
-            self.log.info("No tv show nor movie found for the current playing video")
+            self.log.info(
+                "No tv show nor movie found for the current playing video")
             vlc.close()
             return
 
@@ -392,26 +435,33 @@ class TraktForVLC(object):
 
         logtitle = video["title"]
         if video["tv"]:
-            logtitle += " - %01dx%02d" % (int(video["season"]), int(video["episode"]))
+            logtitle += (" - %01dx%02d"
+                         % (int(video["season"]), int(video["episode"])))
 
             # If we changed episode, we have to reset the view status
             if (self.cache['watching'] > -1
                     and self.cache['series_current_ep'] != video['episode']):
                 self.resetCacheView(video['episode'])
-                self.cache['started_watching'] = (time.time(), self.vlcTime % video['duration'])
+                self.cache['started_watching'] = (
+                    time.time(),
+                    self.vlcTime % video['duration'])
 
         self.log.info(logtitle + " state : " + str(video["percentage"]) + "%")
         self.log.debug("main::Video: %s" % str(video))
-        self.log.debug("main::This video is scrobbled : " + str(self.cache["scrobbled"]))
+        self.log.debug("main::This video is scrobbled : " +
+                       str(self.cache["scrobbled"]))
 
-        if (((video['tv'] and self.DO_SCROBBLE_TV) or (not video['tv'] and self.DO_SCROBBLE_MOVIE))
+        if (((video['tv'] and self.DO_SCROBBLE_TV)
+                or (not video['tv'] and self.DO_SCROBBLE_MOVIE))
                 and video["percentage"] >= self.SCROBBLE_PERCENT
                 and not self.cache["scrobbled"]
                 and self.cache['started_watching'] is not None
-                and (time.time() - self.cache['started_watching'][0]) > (float(video['duration']) / 3.0)
-                and (self.vlcTime - self.cache['started_watching'][1]) > (float(video['duration']) / 4.0)
-                ):
-            self.log.info("Scrobbling "+ logtitle + " to Trakt...")
+                and ((time.time() - self.cache['started_watching'][0])
+                     > (float(video['duration']) / 3.0))
+                and ((self.vlcTime - self.cache['started_watching'][1])
+                     > (float(video['duration']) / 4.0))):
+
+            self.log.info("Scrobbling " + logtitle + " to Trakt...")
             try:
                 self.trakt_client.stopWatching(video["imdbid"],
                                                video["percentage"],
@@ -420,16 +470,24 @@ class TraktForVLC(object):
                 self.cache["scrobbled"] = True
                 self.log.info(logtitle + " scrobbled to Trakt !")
             except TraktClient.TraktError, (e):
-                self.log.error("An error occurred while trying to scrobble", exc_info=sys.exc_info())
+                self.log.error("An error occurred while trying to scrobble",
+                               exc_info=sys.exc_info())
                 if ("scrobbled" in e.msg and "already" in e.msg):
-                    self.log.info("Seems we've already scrobbled this episode recently, aborting scrobble attempt.")
+                    self.log.info("Seems we've already scrobbled this " +
+                                  "episode recently, aborting scrobble " +
+                                  "attempt.")
                     self.cache["scrobbled"] = True
 
-        elif (((video['tv'] and self.DO_WATCHING_TV) or (not video['tv'] and self.DO_WATCHING_MOVIE))
+        elif (((video['tv'] and self.DO_WATCHING_TV)
+                or (not video['tv'] and self.DO_WATCHING_MOVIE))
                 and video["percentage"] < self.SCROBBLE_PERCENT
                 and not self.cache["scrobbled"]
-                and (float(video["duration"]) * float(video["percentage"]) / 100.0) >= self.START_WATCHING_TIMER):
-            self.log.debug("main::Trying to mark " + logtitle + " watching on Trakt...")
+                and ((float(video["duration"]) * float(video["percentage"])
+                     / 100.0) >= self.START_WATCHING_TIMER)):
+
+            self.log.debug("main::Trying to mark " +
+                           logtitle +
+                           " watching on Trakt...")
 
             try:
                 self.trakt_client.startWatching(video["imdbid"],
@@ -439,7 +497,9 @@ class TraktForVLC(object):
                 self.log.info(logtitle + " is currently watching on Trakt...")
                 self.cache["watching"] = video["percentage"]
             except TraktClient.TraktError, (e):
-                self.log.error("An error occurred while trying to mark as watching " + logtitle, exc_info=sys.exc_info())
+                self.log.error("An error occurred while trying to mark as " +
+                               "watching " + logtitle,
+                               exc_info=sys.exc_info())
 
         vlc.close()
 
@@ -452,14 +512,15 @@ class TraktForVLC(object):
 
         return episode
 
-    def get_TV(self, vlc, series_info = (None, None, None)):
+    def get_TV(self, vlc, series_info=(None, None, None)):
         try:
             series, seasonNumber, episodeNumber = series_info
             if series is None:
                 now_playing = parse_tv(self.cache['vlc_file_name'])
 
                 if not now_playing:
-                    self.log.info("Not able to parse a tvshow from the title file")
+                    self.log.info(
+                        "Not able to parse a tvshow from the file title")
                     return
 
                 seriesName = now_playing['show']
@@ -468,46 +529,62 @@ class TraktForVLC(object):
 
                 if self.valid_TV(seriesName):
                     series = self.tvdb[seriesName]
-                    self.cache["series_info"] = (deepcopy(series), seasonNumber, episodeNumber)
+                    self.cache["series_info"] = (
+                        deepcopy(series),
+                        seasonNumber,
+                        episodeNumber)
 
             if series is not None:
                 duration = int(self.cache['vlc_file_length'])
                 time = int(self.vlcTime)
 
-                # Calculate the relative time and duration depending on the number of episodes
+                # Calculate the relative time and duration depending on
+                # the number of episodes
                 duration = int(float(duration) / float(len(episodeNumber)))
                 currentEpisode = episodeNumber[time / duration]
                 time = time % duration
 
                 # Calculate the given percentage for the current episode
-                percentage = time*100/duration
+                percentage = time * 100 / duration
 
                 try:
                     episode = series[int(seasonNumber)][int(currentEpisode)]
-                    return self.set_video(True, series['seriesname'], series['firstaired'], episode['imdb_id'], duration, percentage, episode['seasonnumber'], episode['episodenumber'], series['imdb_id'])
+                    return self.set_video(
+                        True,
+                        series['seriesname'],
+                        series['firstaired'],
+                        episode['imdb_id'],
+                        duration,
+                        percentage,
+                        episode['seasonnumber'],
+                        episode['episodenumber'],
+                        series['imdb_id'])
                 except:
                     self.log.warning("Episode : No valid episode found !")
-                    self.log.debug("get_TV::Here's to help debug", exc_info=sys.exc_info())
+                    self.log.debug("get_TV::Here's to help debug",
+                                   exc_info=sys.exc_info())
                     self.cache["series_info"] = None
                     return
         except:
             self.log.info("No matching tv show found for video playing")
-            self.log.debug("get_TV::Here's to help debug", exc_info=sys.exc_info())
+            self.log.debug("get_TV::Here's to help debug",
+                           exc_info=sys.exc_info())
             return
 
     def valid_TV(self, seriesName):
         try:
-            #series = tvrage_feeds.full_search(seriesName)
             series = self.tvdb.search(seriesName)
             if (len(series) == 0):
-                self.log.debug("valid_TV::no series found with the name '%s'" % seriesName)
+                self.log.debug("valid_TV::no series found with the name '%s'"
+                               % seriesName)
                 return False
             return True
         except:
-            self.log.debug("valid_TV::no valid title found.", exc_info=sys.exc_info())
+            self.log.debug("valid_TV::no valid title found.",
+                           exc_info=sys.exc_info())
             return False
 
-    def get_Movie(self, vlc, movie = None):
+    def get_Movie(self, vlc, movie=None):
         try:
             duration = int(self.cache['vlc_file_length'])
             if movie is None:
@@ -519,59 +596,74 @@ class TraktForVLC(object):
 
                 if self.valid_Movie(title, year, duration):
                     movie = self.cache["movie_info"]
-                    self.log.debug("get_Movie::Valid movie found: %s" % str(movie))
+                    self.log.debug("get_Movie::Valid movie found: %s"
+                                   % str(movie))
 
             if movie is not None:
                 playtime = int(self.vlcTime)
-                percentage = playtime*100/duration
+                percentage = playtime * 100 / duration
 
-                return self.set_video(False, movie['Title'], movie['Year'], movie['imdbID'], duration, percentage)
+                return self.set_video(
+                    False,
+                    movie['Title'],
+                    movie['Year'],
+                    movie['imdbID'],
+                    duration,
+                    percentage)
 
             return
         except:
             self.log.info("No matching movie found for video playing")
-            self.log.debug("get_Movie::Here's to help debug", exc_info=sys.exc_info())
+            self.log.debug("get_Movie::Here's to help debug",
+                           exc_info=sys.exc_info())
             return
-
 
     def valid_Movie(self, vlcTitle, vlcYear, vlcDuration):
         try:
             # Get Movie info
             movie = movie_info.get_movie_info(vlcTitle, vlcYear)
             # Compare Movie runtime against VLC runtime
-            regex = re.compile('^((?P<hour>[0-9]{1,2}).*?h)?.*?(?P<min>[0-9]+).*?min?',re.IGNORECASE|re.MULTILINE)
+            regex = re.compile('^((?P<hour>[0-9]{1,2}).*?h)' +
+                               '?.*?(?P<min>[0-9]+).*?min?',
+                               re.IGNORECASE | re.MULTILINE)
             r = regex.search(movie['Runtime'])
             try:
                 timeh = 0 if r.group('hour') is None else int(r.group('hour'))
                 timem = 0 if r.group('min') is None else int(r.group('min'))
-                time = timeh*60*60+timem*60
+                time = timeh * 60 * 60 + timem * 60
             except:
-                self.log.debug("valid_Movie::unable to compute the duration", exc_info=sys.exc_info())
+                self.log.debug("valid_Movie::unable to compute the duration",
+                               exc_info=sys.exc_info())
                 return False
-            # Verify that the VLC duration is within 5 minutes of the official duration
+            # Verify that the VLC duration is within 5 minutes of the
+            # official duration
             if (vlcDuration >= time - 300) and (vlcDuration <= time + 300):
                 self.cache["movie_info"] = deepcopy(movie)
                 return True
             else:
-                self.log.debug("valid_Movie::time range not respected (%d +-300 != %d)" % (time, vlcDuration))
+                self.log.debug("valid_Movie::time range not respected " +
+                               "(%d +-300 != %d)" % (time, vlcDuration))
         except:
-            self.log.debug("valid_Movie::no valid title found", exc_info=sys.exc_info())
+            self.log.debug("valid_Movie::no valid title found",
+                           exc_info=sys.exc_info())
             return False
         return False
 
-    def set_video(self, tv, title, year, imdbid, duration, percentage, season = -1, episode = -1, show_imdbid = None):
+    def set_video(self, tv, title, year, imdbid, duration, percentage,
+                  season=-1, episode=-1, show_imdbid=None):
         video = {
-                'tv': tv,
-                'title': title,
-                'year': year,
-                'imdbid': imdbid,
-                'duration': duration,
-                'percentage': percentage,
-                'season': season,
-                'episode': episode,
-                'show_imdbid': show_imdbid,
-                }
+            'tv': tv,
+            'title': title,
+            'year': year,
+            'imdbid': imdbid,
+            'duration': duration,
+            'percentage': percentage,
+            'season': season,
+            'episode': episode,
+            'show_imdbid': show_imdbid,
+        }
         return video
+
 
 def daemonize(pidfile=""):
     """
@@ -581,21 +673,23 @@ def daemonize(pidfile=""):
 
     if (pidfile):
         if os.path.exists(pidfile):
-            sys.exit("The pidfile " + pidfile + " already exists, Trakt for VLC may still be running.")
+            sys.exit("The pidfile " + pidfile + " already exists, " +
+                     "TraktForVLC may still be running.")
         try:
             file(pidfile, 'w').write("pid\n")
         except IOError, e:
-            sys.exit("Unable to write PID file: %s [%d]" % (e.strerror, e.errno))
+            sys.exit("Unable to write PID file: %s [%d]"
+                     % (e.strerror, e.errno))
 
     # Make a non-session-leader child process
     try:
-        pid = os.fork() #@UndefinedVariable - only available in UNIX
+        pid = os.fork()  # @UndefinedVariable - only available in UNIX
         if pid != 0:
             sys.exit(0)
     except OSError, e:
         raise RuntimeError("1st fork failed: %s [%d]" % (e.strerror, e.errno))
 
-    os.setsid() #@UndefinedVariable - only available in UNIX
+    os.setsid()  # @UndefinedVariable - only available in UNIX
 
     # Make sure I can read my own files and shut out others
     prev = os.umask(0)
@@ -603,7 +697,7 @@ def daemonize(pidfile=""):
 
     # Make the child a session-leader by detaching from the terminal
     try:
-        pid = os.fork() #@UndefinedVariable - only available in UNIX
+        pid = os.fork()  # @UndefinedVariable - only available in UNIX
         if pid != 0:
             sys.exit(0)
     except OSError, e:
@@ -623,15 +717,27 @@ if __name__ == '__main__':
     config = ""
 
     def help():
-        print "Available options:"
-        print '     --config=path           Path to config file'
-        print '     -d,--daemon             Run as daemon'
-        print '     --datadir=path          Location of the app data (logs,...)'
-        print '     --debug                 Enter DEBUG mode'
-        print '     -h,--help               This message'
-        print '     --loglevel=lvl          Specify the log level'
-        print '     --pidfile=path          Indicate pidfile (for daemon mode)'
-        print '     --small-timers          Activate small timers (for DEBUG mode)'
+        helpstr = [
+            'Available options:',
+            '     --config=path ' +
+            '          Path to config file',
+            '     -d,--daemon   ' +
+            '          Run as daemon',
+            '     --datadir=path' +
+            '          Location of the app data (logs,...)',
+            '     --debug       ' +
+            '          Enter DEBUG mode',
+            '     -h,--help     ' +
+            '          This message',
+            '     --loglevel=lvl' +
+            '          Specify the log level',
+            '     --pidfile=path' +
+            '          Indicate pidfile (for daemon mode)',
+            '     --small-timers' +
+            '          Activate small timers (for DEBUG mode)',
+        ]
+        for hlp in helpstr:
+            print hlp
 
     try:
         opts, args = getopt.getopt(sys.argv[1:], "dh", [
@@ -643,7 +749,7 @@ if __name__ == '__main__':
             'loglevel=',
             'pidfile=',
             'small-timers',
-            ])
+        ])
     except getopt.GetoptError, e:
         print 'Error:', e.msg
         help()
@@ -657,7 +763,8 @@ if __name__ == '__main__':
         # Run as a daemon
         elif o in ('-d', '--daemon'):
             if sys.platform == 'win32':
-                print "Daemonize not supported under Windows, starting normally"
+                print ("Daemonize not supported under Windows, " +
+                       "starting normally")
             else:
                 should_daemon = True
 
@@ -681,7 +788,8 @@ if __name__ == '__main__':
                 LOG_LEVEL = int(a)
             else:
                 for loglvl, logstr in AVAILABLE_LOGLVL:
-                    if a == logstr: LOG_LEVEL = loglvl
+                    if a == logstr:
+                        LOG_LEVEL = loglvl
                 if LOG_LEVEL is None:
                     raise Exception("LOG_LEVEL %s unknown", a)
 
@@ -708,6 +816,3 @@ if __name__ == '__main__':
 
     client = TraktForVLC(datadir, configfile)
     client.run()
-
-
-
