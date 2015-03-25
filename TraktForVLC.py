@@ -169,7 +169,7 @@ class TraktForVLC(object):
         else:
             logfile = os.path.join(
                 logdir,
-                "TraktForVLC-" + DATETIME.strftime("%y-%m-%d-%H-%M") + ".log")
+                "TraktForVLC-" + DATETIME.strftime("%Y%m%d-%H%M") + ".log")
 
         logging.basicConfig(
             format="%(asctime)s::%(name)s::%(levelname)s::%(message)s",
