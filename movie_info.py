@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 #
-# Copyright (C) 2014        Raphaël Beamonte
+# Copyright (C) 2014-2015   Raphaël Beamonte <raphael.beamonte@gmail.com>
 #
 # This file is part of TraktForVLC.  TraktForVLC is free software: you can
 # redistribute it and/or modify it under the terms of the GNU General Public
