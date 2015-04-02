@@ -301,6 +301,9 @@ def parse_tv(filename):
         "episodes": None,
     }
 
+    if type(filename) == bytes:
+        filename = filename.decode()
+
     for regex in series_filename_regex:
         m = regex.match(filename)
         if m:
@@ -319,7 +322,7 @@ def parse_tv(filename):
                     end = int(m.group('episodenumberend'))
                     if start > end:
                         start, end = end, start
-                    series['episodes'] = range(start, end + 1)
+                    series['episodes'] = list(range(start, end + 1))
                 else:
                     series['episodes'] = [int(m.group('episodenumberstart')), ]
             elif 'episodenumber' in groupnames:
@@ -336,6 +339,9 @@ def parse_movie(filename):
         "title": None,
         "year": None,
     }
+
+    if type(filename) == bytes:
+        filename = filename.decode()
 
     for regex in movies_filename_regex:
         m = regex.match(filename)

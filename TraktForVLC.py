@@ -21,8 +21,15 @@
 # Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 # or see <http://www.gnu.org/licenses/>.
 
+# import sys first to check Python version
+import sys
+IS_PY2 = (sys.version_info[0] == 2)
+
 # Python lib import
-import ConfigParser
+if IS_PY2:
+    from ConfigParser import RawConfigParser
+else:
+    from configparser import RawConfigParser
 from copy import deepcopy
 import datetime
 import getopt
@@ -32,16 +39,23 @@ from pkg_resources import parse_version
 import re
 import requests
 import signal
-import sys
 import time
 import traceback
-from urllib import unquote
-from urlparse import urlparse
+if IS_PY2:
+    from urllib import unquote
+    from urlparse import urlparse
+else:
+    from urllib.parse import unquote
+    from urllib.parse import urlparse
 
 # Local import
 from filenameparser import parse_tv, parse_movie
 import movie_info
 import TraktClient
+if not IS_PY2:
+    sys.path.append(os.path.abspath(
+        os.path.join(*__file__.split('/')[:-1] + ['tvdb_api'])
+    ))
 import tvdb_api
 from vlcrc import VLCRemote
 
@@ -174,8 +188,7 @@ class TraktForVLC(object):
         logging.basicConfig(
             format="%(asctime)s::%(name)s::%(levelname)s::%(message)s",
             level=LOG_LEVEL,
-            filename=logfile,
-            stream=sys.stdout)
+            filename=logfile)
 
         self.log = logging.getLogger("TraktForVLC")
 
@@ -200,7 +213,7 @@ class TraktForVLC(object):
 
         self.__check_version()
 
-        self.config = ConfigParser.RawConfigParser()
+        self.config = RawConfigParser()
         self.config.read(configfile)
 
         # Initialize timers
@@ -331,7 +344,7 @@ class TraktForVLC(object):
         while (True):
             try:
                 self.main()
-            except Exception, e:
+            except Exception as e:
                 self.log.error(
                     "An unknown error occurred",
                     exc_info=sys.exc_info())
@@ -469,7 +482,7 @@ class TraktForVLC(object):
 
                 self.cache["scrobbled"] = True
                 self.log.info(logtitle + " scrobbled to Trakt !")
-            except TraktClient.TraktError, (e):
+            except TraktClient.TraktError as e:
                 self.log.error("An error occurred while trying to scrobble",
                                exc_info=sys.exc_info())
 
@@ -491,7 +504,7 @@ class TraktForVLC(object):
 
                 self.log.info(logtitle + " is currently watching on Trakt...")
                 self.cache["watching"] = video["percentage"]
-            except TraktClient.TraktError, (e):
+            except TraktClient.TraktError as e:
                 self.log.error("An error occurred while trying to mark as " +
                                "watching " + logtitle,
                                exc_info=sys.exc_info())
@@ -536,7 +549,7 @@ class TraktForVLC(object):
                 # Calculate the relative time and duration depending on
                 # the number of episodes
                 duration = int(float(duration) / float(len(episodeNumber)))
-                currentEpisode = episodeNumber[time / duration]
+                currentEpisode = episodeNumber[int(time / duration)]
                 time = time % duration
 
                 # Calculate the given percentage for the current episode
@@ -672,7 +685,7 @@ def daemonize(pidfile=""):
                      "TraktForVLC may still be running.")
         try:
             file(pidfile, 'w').write("pid\n")
-        except IOError, e:
+        except IOError as e:
             sys.exit("Unable to write PID file: %s [%d]"
                      % (e.strerror, e.errno))
 
@@ -681,7 +694,7 @@ def daemonize(pidfile=""):
         pid = os.fork()  # @UndefinedVariable - only available in UNIX
         if pid != 0:
             sys.exit(0)
-    except OSError, e:
+    except OSError as e:
         raise RuntimeError("1st fork failed: %s [%d]" % (e.strerror, e.errno))
 
     os.setsid()  # @UndefinedVariable - only available in UNIX
@@ -695,7 +708,7 @@ def daemonize(pidfile=""):
         pid = os.fork()  # @UndefinedVariable - only available in UNIX
         if pid != 0:
             sys.exit(0)
-    except OSError, e:
+    except OSError as e:
         raise RuntimeError("2nd fork failed: %s [%d]" % (e.strerror, e.errno))
 
     dev_null = file('/dev/null', 'r')
@@ -732,7 +745,7 @@ if __name__ == '__main__':
             '          Activate small timers (for DEBUG mode)',
         ]
         for hlp in helpstr:
-            print hlp
+            print(hlp)
 
     try:
         opts, args = getopt.getopt(sys.argv[1:], "dh", [
@@ -745,8 +758,8 @@ if __name__ == '__main__':
             'pidfile=',
             'small-timers',
         ])
-    except getopt.GetoptError, e:
-        print 'Error:', e.msg
+    except getopt.GetoptError as e:
+        print('Error:', e.msg)
         help()
         sys.exit(1)
 
@@ -758,8 +771,8 @@ if __name__ == '__main__':
         # Run as a daemon
         elif o in ('-d', '--daemon'):
             if sys.platform == 'win32':
-                print ("Daemonize not supported under Windows, " +
-                       "starting normally")
+                print("Daemonize not supported under Windows, " +
+                      "starting normally")
             else:
                 should_daemon = True
 

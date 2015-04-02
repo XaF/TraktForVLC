@@ -58,7 +58,7 @@ class VLCRemote(object):
         self.vlcversion = None
         if cached != '':
             version = re.findall(
-                '((?:[0-9]+\.){2}[0-9]+(?:-[a-zA-Z0-9]+)?)', cached)
+                b'((?:[0-9]+\.){2}[0-9]+(?:-[a-zA-Z0-9]+)?)', cached)
             if version:
                 self.vlcrc = True
                 self.vlcversion = version[0]
@@ -80,7 +80,7 @@ class VLCRemote(object):
         cmd_str += '\n'
 
         self.log.debug('-> Sending: %s' % cmd_str.strip())
-        self.cnx.write(cmd_str)
+        self.cnx.write(cmd_str.encode('ascii'))
 
         if not raw:
             cmd_end = '%s: returned ' % cmd
@@ -118,7 +118,7 @@ class VLCRemote(object):
 
     def get_filename(self):
         fn_re = re.compile(
-            'input: (?P<path>(?P<ptcl>[a-z]*)://(?P<fn>.+?)) \)',
+            b'input: (?P<path>(?P<ptcl>[a-z]*)://(?P<fn>.+?)) \)',
             re.IGNORECASE | re.MULTILINE)
         match = self._command('status', fn_re, raw=True)
         fn = match.groupdict()['path']
@@ -128,7 +128,7 @@ class VLCRemote(object):
         self._command('seek', args=(0,))
 
     def skip(self, duration=60):
-        time_re = re.compile('(?P<time>\d+)\r\n')
+        time_re = re.compile(b'(?P<time>\d+)\r\n')
         ret_match = self._command('get_time', time_re, raw=True)
         time = ret_match.groupdict()['time']
         gt = str(int(time) + duration)
@@ -139,7 +139,7 @@ class VLCRemote(object):
 
     def get_title(self):
         fn_re = re.compile(
-            '^(?!status change:)>?\s*(?P<title>[^\r\n]+?)\r?\n',
+            b'^(?!status change:)>?\s*(?P<title>[^\r\n]+?)\r?\n',
             re.IGNORECASE | re.MULTILINE)
         title = self._command('get_title', fn_re, raw=True)
         title = title.groupdict()['title']
@@ -147,7 +147,7 @@ class VLCRemote(object):
 
     def is_playing(self):
         fn_re = re.compile(
-            '^(?!status change:)>?\s*(?P<playing>\d+)\r?\n',
+            b'^(?!status change:)>?\s*(?P<playing>\d+)\r?\n',
             re.IGNORECASE | re.MULTILINE)
         playing = self._command('is_playing', fn_re, raw=True)
         playing = playing.groupdict()['playing']
@@ -155,16 +155,16 @@ class VLCRemote(object):
 
     def get_info(self):
         fn_re = re.compile(
-            '(?P<info>\+----.+\[ end of stream info \])', re.DOTALL)
+            b'(?P<info>\+----.+\[ end of stream info \])', re.DOTALL)
         info = self._command('info', fn_re, raw=True)
         info = info.groupdict()['info']
 
         dictinfo = {}
         for match in re.findall(
-                "\+----\[ (?P<block>.+?) \](?P<content>.+?)(?=\+----)",
+                b"\+----\[ (?P<block>.+?) \](?P<content>.+?)(?=\+----)",
                 info, re.DOTALL):
             dictinfo[match[0]] = dict(
-                re.findall("([a-zA-Z0-9]*): ([\x20-\x7E]*)", match[1]))
+                re.findall(b"([a-zA-Z0-9]*): ([\x20-\x7E]*)", match[1]))
 
         return dictinfo
 
@@ -174,7 +174,7 @@ class VLCRemote(object):
 
     def get_length(self):
         fn_re = re.compile(
-            '^(?!status change:)>?\s*(?P<length>\d+)\r?\n',
+            b'^(?!status change:)>?\s*(?P<length>\d+)\r?\n',
             re.IGNORECASE | re.MULTILINE)
         length = self._command('get_length', fn_re, raw=True)
         length = length.groupdict()['length']
@@ -182,7 +182,7 @@ class VLCRemote(object):
 
     def get_time(self):
         fn_re = re.compile(
-            '^(?!status change:)>?\s*(?P<time>\d+)\r?\n',
+            b'^(?!status change:)>?\s*(?P<time>\d+)\r?\n',
             re.IGNORECASE | re.MULTILINE)
         time = self._command('get_time', fn_re, raw=True)
         time = time.groupdict()['time']
@@ -195,15 +195,15 @@ if __name__ == "__main__":
     vlc = VLCRemote("localhost", 4222)
 
     if vlc.vlcversion is not None:
-        print "VLC version is %s" % vlc.vlcversion
+        print("VLC version is %s" % vlc.vlcversion)
     else:
-        print "VLC version is unknown"
+        print("VLC version is unknown")
 
     if vlc.is_playing():
-        print "The title of the VLC window is:", vlc.get_title()
+        print("The title of the VLC window is:", vlc.get_title())
         if vlc.vlcrc:
-            print "The file currently opened is:", vlc.get_filename()
+            print("The file currently opened is:", vlc.get_filename())
     else:
-        print "Nothing is currently playing"
+        print("Nothing is currently playing")
 
     vlc.close()

@@ -74,7 +74,7 @@ but I'm open to pull requests on this side, as we're here to
 share.
 
 #### Python version
-This version of TraktForVLC has been tested using Python 2.7.9
+This version of TraktForVLC has been tested using Python 2.7.9 and Python 3.4.2
 
 #### VLC version
 This version of TraktForVLC has been tested using VLC 2.2.0 Weatherwax
