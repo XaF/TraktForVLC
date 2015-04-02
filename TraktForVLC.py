@@ -472,11 +472,6 @@ class TraktForVLC(object):
             except TraktClient.TraktError, (e):
                 self.log.error("An error occurred while trying to scrobble",
                                exc_info=sys.exc_info())
-                if ("scrobbled" in e.msg and "already" in e.msg):
-                    self.log.info("Seems we've already scrobbled this " +
-                                  "episode recently, aborting scrobble " +
-                                  "attempt.")
-                    self.cache["scrobbled"] = True
 
         elif (((video['tv'] and self.DO_WATCHING_TV)
                 or (not video['tv'] and self.DO_WATCHING_MOVIE))
