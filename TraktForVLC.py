@@ -505,7 +505,7 @@ class TraktForVLC(object):
 
     def get_episode(self, video):
         episode = video["tv"]
-        if episode and not video["imdbid"]:
+        if episode:
             episode = (video["show_imdbid"],
                        video["season"],
                        video["episode"])
