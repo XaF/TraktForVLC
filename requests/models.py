@@ -7,419 +7,56 @@ requests.models
 This module contains the primary objects that power Requests.
 """
 
-import os
-from datetime import datetime
+import collections
+import datetime
 
-from .hooks import dispatch_hook, HOOKS
+from io import BytesIO, UnsupportedOperation
+from .hooks import default_hooks
 from .structures import CaseInsensitiveDict
+
+from .auth import HTTPBasicAuth
+from .cookies import cookiejar_from_dict, get_cookie_header
+from .packages.urllib3.fields import RequestField
+from .packages.urllib3.filepost import encode_multipart_formdata
+from .packages.urllib3.util import parse_url
+from .packages.urllib3.exceptions import (
+    DecodeError, ReadTimeoutError, ProtocolError, LocationParseError)
+from .exceptions import (
+    HTTPError, MissingSchema, InvalidURL, ChunkedEncodingError,
+    ContentDecodingError, ConnectionError, StreamConsumedError)
+from .utils import (
+    guess_filename, get_auth_from_url, requote_uri,
+    stream_decode_response_unicode, to_key_val_list, parse_header_links,
+    iter_slices, guess_json_utf, super_len, to_native_string)
+from .compat import (
+    cookielib, urlunparse, urlsplit, urlencode, str, bytes, StringIO,
+    is_py2, chardet, json, builtin_str, basestring)
 from .status_codes import codes
 
-from .auth import HTTPBasicAuth, HTTPProxyAuth
-from .cookies import cookiejar_from_dict, extract_cookies_to_jar, get_cookie_header
-from .packages.urllib3.exceptions import MaxRetryError, LocationParseError
-from .packages.urllib3.exceptions import SSLError as _SSLError
-from .packages.urllib3.exceptions import HTTPError as _HTTPError
-from .packages.urllib3 import connectionpool, poolmanager
-from .packages.urllib3.filepost import encode_multipart_formdata
-from .defaults import SCHEMAS
-from .exceptions import (
-    ConnectionError, HTTPError, RequestException, Timeout, TooManyRedirects,
-    URLRequired, SSLError, MissingSchema, InvalidSchema, InvalidURL)
-from .utils import (
-    get_encoding_from_headers, stream_untransfer, guess_filename, requote_uri,
-    stream_decode_response_unicode, get_netrc_auth, get_environ_proxies,
-    DEFAULT_CA_BUNDLE_PATH)
-from .compat import (
-    cookielib, urlparse, urlunparse, urljoin, urlsplit, urlencode, str, bytes,
-    StringIO, is_py2, chardet, json)
-
-REDIRECT_STATI = (codes.moved, codes.found, codes.other, codes.temporary_moved)
+#: The set of HTTP status codes that indicate an automatically
+#: processable redirect.
+REDIRECT_STATI = (
+    codes.moved,              # 301
+    codes.found,              # 302
+    codes.other,              # 303
+    codes.temporary_redirect, # 307
+    codes.permanent_redirect, # 308
+)
+DEFAULT_REDIRECT_LIMIT = 30
 CONTENT_CHUNK_SIZE = 10 * 1024
+ITER_CHUNK_SIZE = 512
 
-class Request(object):
-    """The :class:`Request <Request>` object. It carries out all functionality of
-    Requests. Recommended interface is with the Requests functions.
-    """
+json_dumps = json.dumps
 
-    def __init__(self,
-        url=None,
-        headers=dict(),
-        files=None,
-        method=None,
-        data=dict(),
-        params=dict(),
-        auth=None,
-        cookies=None,
-        timeout=None,
-        redirect=False,
-        allow_redirects=False,
-        proxies=None,
-        hooks=None,
-        config=None,
-        prefetch=False,
-        _poolmanager=None,
-        verify=None,
-        session=None,
-        cert=None):
 
-        #: Dictionary of configurations for this request.
-        self.config = dict(config or [])
-
-        #: Float describes the timeout of the request.
-        #  (Use socket.setdefaulttimeout() as fallback)
-        self.timeout = timeout
-
-        #: Request URL.
-        self.url = url
-
-        #: Dictionary of HTTP Headers to attach to the :class:`Request <Request>`.
-        self.headers = dict(headers or [])
-
-        #: Dictionary of files to multipart upload (``{filename: content}``).
-        self.files = None
-
-        #: HTTP Method to use.
-        self.method = method
-
-        #: Dictionary, bytes or file stream of request body data to attach to the
-        #: :class:`Request <Request>`.
-        self.data = None
-
-        #: Dictionary or byte of querystring data to attach to the
-        #: :class:`Request <Request>`. The dictionary values can be lists for representing
-        #: multivalued query parameters.
-        self.params = None
-
-        #: True if :class:`Request <Request>` is part of a redirect chain (disables history
-        #: and HTTPError storage).
-        self.redirect = redirect
-
-        #: Set to True if full redirects are allowed (e.g. re-POST-ing of data at new ``Location``)
-        self.allow_redirects = allow_redirects
-
-        # Dictionary mapping protocol to the URL of the proxy (e.g. {'http': 'foo.bar:3128'})
-        self.proxies = dict(proxies or [])
-
-        # If no proxies are given, allow configuration by environment variables
-        # HTTP_PROXY and HTTPS_PROXY.
-        if not self.proxies and self.config.get('trust_env'):
-            self.proxies = get_environ_proxies()
-
-        self.data = data
-        self.params = params
-        self.files = files
-
-        #: :class:`Response <Response>` instance, containing
-        #: content and metadata of HTTP Response, once :attr:`sent <send>`.
-        self.response = Response()
-
-        #: Authentication tuple or object to attach to :class:`Request <Request>`.
-        self.auth = auth
-
-        #: CookieJar to attach to :class:`Request <Request>`.
-        if isinstance(cookies, cookielib.CookieJar):
-            self.cookies = cookies
-        else:
-            self.cookies = cookiejar_from_dict(cookies)
-
-        #: True if Request has been sent.
-        self.sent = False
-
-        #: Event-handling hooks.
-        self.hooks = {}
-
-        for event in HOOKS:
-            self.hooks[event] = []
-
-        hooks = hooks or {}
-
-        for (k, v) in list(hooks.items()):
-            self.register_hook(event=k, hook=v)
-
-        #: Session.
-        self.session = session
-
-        #: SSL Verification.
-        self.verify = verify
-
-        #: SSL Certificate
-        self.cert = cert
-
-        #: Prefetch response content
-        self.prefetch = prefetch
-
-        if headers:
-            headers = CaseInsensitiveDict(self.headers)
-        else:
-            headers = CaseInsensitiveDict()
-
-        # Add configured base headers.
-        for (k, v) in list(self.config.get('base_headers', {}).items()):
-            if k not in headers:
-                headers[k] = v
-
-        self.headers = headers
-        self._poolmanager = _poolmanager
-
-    def __repr__(self):
-        return '<Request [%s]>' % (self.method)
-
-    def _build_response(self, resp):
-        """Build internal :class:`Response <Response>` object
-        from given response.
-        """
-
-        def build(resp):
-
-            response = Response()
-
-            # Pass settings over.
-            response.config = self.config
-
-            if resp:
-
-                # Fallback to None if there's no status_code, for whatever reason.
-                response.status_code = getattr(resp, 'status', None)
-
-                # Make headers case-insensitive.
-                response.headers = CaseInsensitiveDict(getattr(resp, 'headers', None))
-
-                # Set encoding.
-                response.encoding = get_encoding_from_headers(response.headers)
-
-                # Add new cookies from the server. Don't if configured not to
-                if self.config.get('store_cookies'):
-                    extract_cookies_to_jar(self.cookies, self, resp)
-
-                # Save cookies in Response.
-                response.cookies = self.cookies
-
-                # Save cookies in Session.
-                for cookie in self.cookies:
-                    self.session.cookies.set_cookie(cookie)
-
-                # No exceptions were harmed in the making of this request.
-                response.error = getattr(resp, 'error', None)
-
-            # Save original response for later.
-            response.raw = resp
-            if isinstance(self.full_url, bytes):
-                response.url = self.full_url.decode('utf-8')
-            else:
-                response.url = self.full_url
-
-            return response
-
-        history = []
-
-        r = build(resp)
-
-        if r.status_code in REDIRECT_STATI and not self.redirect:
-
-            while (('location' in r.headers) and
-                   ((r.status_code is codes.see_other) or (self.allow_redirects))):
-
-                r.content  # Consume socket so it can be released
-
-                if not len(history) < self.config.get('max_redirects'):
-                    raise TooManyRedirects()
-
-                # Release the connection back into the pool.
-                r.raw.release_conn()
-
-                history.append(r)
-
-                url = r.headers['location']
-                data = self.data
-                files = self.files
-
-                # Handle redirection without scheme (see: RFC 1808 Section 4)
-                if url.startswith('//'):
-                    parsed_rurl = urlparse(r.url)
-                    url = '%s:%s' % (parsed_rurl.scheme, url)
-
-                # Facilitate non-RFC2616-compliant 'location' headers
-                # (e.g. '/path/to/resource' instead of 'http://domain.tld/path/to/resource')
-                if not urlparse(url).netloc:
-                    url = urljoin(r.url,
-                                  # Compliant with RFC3986, we percent
-                                  # encode the url.
-                                  requote_uri(url))
-
-                # http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.3.4
-                if r.status_code is codes.see_other:
-                    method = 'GET'
-                    data = None
-                    files = None
-                else:
-                    method = self.method
-
-                # Do what the browsers do if strict_mode is off...
-                if (not self.config.get('strict_mode')):
-
-                    if r.status_code in (codes.moved, codes.found) and self.method == 'POST':
-                        method = 'GET'
-                        data = None
-                        files = None
-
-                    if (r.status_code == 303) and self.method != 'HEAD':
-                        method = 'GET'
-                        data = None
-                        files = None
-
-                # Remove the cookie headers that were sent.
-                headers = self.headers
-                try:
-                    del headers['Cookie']
-                except KeyError:
-                    pass
-
-                request = Request(
-                    url=url,
-                    headers=headers,
-                    files=files,
-                    method=method,
-                    params=self.session.params,
-                    auth=self.auth,
-                    cookies=self.cookies,
-                    redirect=True,
-                    data=data,
-                    config=self.config,
-                    timeout=self.timeout,
-                    _poolmanager=self._poolmanager,
-                    proxies=self.proxies,
-                    verify=self.verify,
-                    session=self.session,
-                    cert=self.cert
-                )
-
-                request.send()
-                r = request.response
-
-            r.history = history
-
-        self.response = r
-        self.response.request = self
-
-    @staticmethod
-    def _encode_params(data):
-        """Encode parameters in a piece of data.
-
-        Will successfully encode parameters when passed as a dict or a list of
-        2-tuples. Order is retained if data is a list of 2-tuples but abritrary
-        if parameters are supplied as a dict.
-        """
-
-        if isinstance(data, bytes):
-            return data
-        if isinstance(data, str):
-            return data
-        elif hasattr(data, 'read'):
-            return data
-        elif hasattr(data, '__iter__'):
-            try:
-                dict(data)
-            except ValueError:
-                raise ValueError('Unable to encode lists with elements that are not 2-tuples.')
-
-            params = list(data.items() if isinstance(data, dict) else data)
-            result = []
-            for k, vs in params:
-                for v in isinstance(vs, list) and vs or [vs]:
-                    result.append(
-                        (k.encode('utf-8') if isinstance(k, str) else k,
-                         v.encode('utf-8') if isinstance(v, str) else v))
-            return urlencode(result, doseq=True)
-        else:
-            return data
-
-    def _encode_files(self, files):
-
-        if (not files) or isinstance(self.data, str):
-            return None
-
-        try:
-            fields = self.data.copy()
-        except AttributeError:
-            fields = dict(self.data)
-
-        for (k, v) in list(files.items()):
-            # support for explicit filename
-            if isinstance(v, (tuple, list)):
-                fn, fp = v
-            else:
-                fn = guess_filename(v) or k
-                fp = v
-            if isinstance(fp, (bytes, str)):
-                fp = StringIO(fp)
-            fields.update({k: (fn, fp.read())})
-
-        (body, content_type) = encode_multipart_formdata(fields)
-
-        return (body, content_type)
-
-    @property
-    def full_url(self):
-        """Build the actual URL to use."""
-
-        if not self.url:
-            raise URLRequired()
-
-        url = self.url
-
-        # Support for unicode domain names and paths.
-        scheme, netloc, path, params, query, fragment = urlparse(url)
-
-        if not scheme:
-            raise MissingSchema("Invalid URL %r: No schema supplied" % url)
-
-        if not scheme in SCHEMAS:
-            raise InvalidSchema("Invalid scheme %r" % scheme)
-
-        netloc = netloc.encode('idna').decode('utf-8')
-
-        if not path:
-            path = '/'
-
-        if is_py2:
-            if isinstance(scheme, str):
-                scheme = scheme.encode('utf-8')
-            if isinstance(netloc, str):
-                netloc = netloc.encode('utf-8')
-            if isinstance(path, str):
-                path = path.encode('utf-8')
-            if isinstance(params, str):
-                params = params.encode('utf-8')
-            if isinstance(query, str):
-                query = query.encode('utf-8')
-            if isinstance(fragment, str):
-                fragment = fragment.encode('utf-8')
-
-        enc_params = self._encode_params(self.params)
-        if enc_params:
-            if query:
-                query = '%s&%s' % (query, enc_params)
-            else:
-                query = enc_params
-
-        url = (urlunparse([scheme, netloc, path, params, query, fragment]))
-
-        if self.config.get('encode_uri', True):
-            url = requote_uri(url)
-
-        return url
-
+class RequestEncodingMixin(object):
     @property
     def path_url(self):
         """Build the path URL to use."""
 
         url = []
 
-        p = urlsplit(self.full_url)
-
-        # Proxies use full URLs.
-        if p.scheme in self.proxies:
-            return self.full_url
+        p = urlsplit(self.url)
 
         path = p.path
         if not path:
@@ -434,10 +71,105 @@ class Request(object):
 
         return ''.join(url)
 
+    @staticmethod
+    def _encode_params(data):
+        """Encode parameters in a piece of data.
+
+        Will successfully encode parameters when passed as a dict or a list of
+        2-tuples. Order is retained if data is a list of 2-tuples but arbitrary
+        if parameters are supplied as a dict.
+        """
+
+        if isinstance(data, (str, bytes)):
+            return data
+        elif hasattr(data, 'read'):
+            return data
+        elif hasattr(data, '__iter__'):
+            result = []
+            for k, vs in to_key_val_list(data):
+                if isinstance(vs, basestring) or not hasattr(vs, '__iter__'):
+                    vs = [vs]
+                for v in vs:
+                    if v is not None:
+                        result.append(
+                            (k.encode('utf-8') if isinstance(k, str) else k,
+                             v.encode('utf-8') if isinstance(v, str) else v))
+            return urlencode(result, doseq=True)
+        else:
+            return data
+
+    @staticmethod
+    def _encode_files(files, data):
+        """Build the body for a multipart/form-data request.
+
+        Will successfully encode files when passed as a dict or a list of
+        2-tuples. Order is retained if data is a list of 2-tuples but arbitrary
+        if parameters are supplied as a dict.
+
+        """
+        if (not files):
+            raise ValueError("Files must be provided.")
+        elif isinstance(data, basestring):
+            raise ValueError("Data must not be a string.")
+
+        new_fields = []
+        fields = to_key_val_list(data or {})
+        files = to_key_val_list(files or {})
+
+        for field, val in fields:
+            if isinstance(val, basestring) or not hasattr(val, '__iter__'):
+                val = [val]
+            for v in val:
+                if v is not None:
+                    # Don't call str() on bytestrings: in Py3 it all goes wrong.
+                    if not isinstance(v, bytes):
+                        v = str(v)
+
+                    new_fields.append(
+                        (field.decode('utf-8') if isinstance(field, bytes) else field,
+                         v.encode('utf-8') if isinstance(v, str) else v))
+
+        for (k, v) in files:
+            # support for explicit filename
+            ft = None
+            fh = None
+            if isinstance(v, (tuple, list)):
+                if len(v) == 2:
+                    fn, fp = v
+                elif len(v) == 3:
+                    fn, fp, ft = v
+                else:
+                    fn, fp, ft, fh = v
+            else:
+                fn = guess_filename(v) or k
+                fp = v
+
+            if isinstance(fp, (str, bytes, bytearray)):
+                fdata = fp
+            else:
+                fdata = fp.read()
+
+            rf = RequestField(name=k, data=fdata,
+                              filename=fn, headers=fh)
+            rf.make_multipart(content_type=ft)
+            new_fields.append(rf)
+
+        body, content_type = encode_multipart_formdata(new_fields)
+
+        return body, content_type
+
+
+class RequestHooksMixin(object):
     def register_hook(self, event, hook):
         """Properly register a hook."""
 
-        self.hooks[event].append(hook)
+        if event not in self.hooks:
+            raise ValueError('Unsupported event specified, with event name "%s"' % (event))
+
+        if isinstance(hook, collections.Callable):
+            self.hooks[event].append(hook)
+        elif hasattr(hook, '__iter__'):
+            self.hooks[event].extend(h for h in hook if isinstance(h, collections.Callable))
 
     def deregister_hook(self, event, hook):
         """Deregister a previously registered hook.
@@ -450,195 +182,367 @@ class Request(object):
         except ValueError:
             return False
 
-    def send(self, anyway=False, prefetch=False):
-        """Sends the request. Returns True if successful, False if not.
-        If there was an HTTPError during transmission,
-        self.response.status_code will contain the HTTPError code.
 
-        Once a request is successfully sent, `sent` will equal True.
+class Request(RequestHooksMixin):
+    """A user-created :class:`Request <Request>` object.
 
-        :param anyway: If True, request will be sent, even if it has
-        already been sent.
-        """
+    Used to prepare a :class:`PreparedRequest <PreparedRequest>`, which is sent to the server.
 
-        # Build the URL
-        url = self.full_url
+    :param method: HTTP method to use.
+    :param url: URL to send.
+    :param headers: dictionary of headers to send.
+    :param files: dictionary of {filename: fileobject} files to multipart upload.
+    :param data: the body to attach to the request. If a dictionary is provided, form-encoding will take place.
+    :param json: json for the body to attach to the request (if data is not specified).
+    :param params: dictionary of URL parameters to append to the URL.
+    :param auth: Auth handler or (user, pass) tuple.
+    :param cookies: dictionary or CookieJar of cookies to attach to this request.
+    :param hooks: dictionary of callback hooks, for internal usage.
 
-        # Pre-request hook.
-        r = dispatch_hook('pre_request', self.hooks, self)
-        self.__dict__.update(r.__dict__)
+    Usage::
 
-        # Logging
-        if self.config.get('verbose'):
-            self.config.get('verbose').write('%s   %s   %s\n' % (
-                datetime.now().isoformat(), self.method, url
-            ))
+      >>> import requests
+      >>> req = requests.Request('GET', 'http://httpbin.org/get')
+      >>> req.prepare()
+      <PreparedRequest [GET]>
+
+    """
+    def __init__(self,
+        method=None,
+        url=None,
+        headers=None,
+        files=None,
+        data=None,
+        params=None,
+        auth=None,
+        cookies=None,
+        hooks=None,
+        json=None):
+
+        # Default empty dicts for dict params.
+        data = [] if data is None else data
+        files = [] if files is None else files
+        headers = {} if headers is None else headers
+        params = {} if params is None else params
+        hooks = {} if hooks is None else hooks
+
+        self.hooks = default_hooks()
+        for (k, v) in list(hooks.items()):
+            self.register_hook(event=k, hook=v)
+
+        self.method = method
+        self.url = url
+        self.headers = headers
+        self.files = files
+        self.data = data
+        self.json = json
+        self.params = params
+        self.auth = auth
+        self.cookies = cookies
+
+    def __repr__(self):
+        return '<Request [%s]>' % (self.method)
+
+    def prepare(self):
+        """Constructs a :class:`PreparedRequest <PreparedRequest>` for transmission and returns it."""
+        p = PreparedRequest()
+        p.prepare(
+            method=self.method,
+            url=self.url,
+            headers=self.headers,
+            files=self.files,
+            data=self.data,
+            json=self.json,
+            params=self.params,
+            auth=self.auth,
+            cookies=self.cookies,
+            hooks=self.hooks,
+        )
+        return p
+
+
+class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
+    """The fully mutable :class:`PreparedRequest <PreparedRequest>` object,
+    containing the exact bytes that will be sent to the server.
+
+    Generated from either a :class:`Request <Request>` object or manually.
+
+    Usage::
+
+      >>> import requests
+      >>> req = requests.Request('GET', 'http://httpbin.org/get')
+      >>> r = req.prepare()
+      <PreparedRequest [GET]>
+
+      >>> s = requests.Session()
+      >>> s.send(r)
+      <Response [200]>
+
+    """
+
+    def __init__(self):
+        #: HTTP verb to send to the server.
+        self.method = None
+        #: HTTP URL to send the request to.
+        self.url = None
+        #: dictionary of HTTP headers.
+        self.headers = None
+        # The `CookieJar` used to create the Cookie header will be stored here
+        # after prepare_cookies is called
+        self._cookies = None
+        #: request body to send to the server.
+        self.body = None
+        #: dictionary of callback hooks, for internal usage.
+        self.hooks = default_hooks()
+
+    def prepare(self, method=None, url=None, headers=None, files=None,
+                data=None, params=None, auth=None, cookies=None, hooks=None,
+                json=None):
+        """Prepares the entire request with the given parameters."""
+
+        self.prepare_method(method)
+        self.prepare_url(url, params)
+        self.prepare_headers(headers)
+        self.prepare_cookies(cookies)
+        self.prepare_body(data, files, json)
+        self.prepare_auth(auth, url)
+        # Note that prepare_auth must be last to enable authentication schemes
+        # such as OAuth to work on a fully prepared request.
+
+        # This MUST go after prepare_auth. Authenticators could add a hook
+        self.prepare_hooks(hooks)
+
+    def __repr__(self):
+        return '<PreparedRequest [%s]>' % (self.method)
+
+    def copy(self):
+        p = PreparedRequest()
+        p.method = self.method
+        p.url = self.url
+        p.headers = self.headers.copy() if self.headers is not None else None
+        p._cookies = self._cookies.copy() if self._cookies is not None else None
+        p.body = self.body
+        p.hooks = self.hooks
+        return p
+
+    def prepare_method(self, method):
+        """Prepares the given HTTP method."""
+        self.method = method
+        if self.method is not None:
+            self.method = self.method.upper()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindy call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/kennethreitz/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode('utf8')
+        else:
+            url = unicode(url) if is_py2 else str(url)
+
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ':' in url and not url.lower().startswith('http'):
+            self.url = url
+            return
+
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+
+        if not scheme:
+            raise MissingSchema("Invalid URL {0!r}: No schema supplied. "
+                                "Perhaps you meant http://{0}?".format(url))
+
+        if not host:
+            raise InvalidURL("Invalid URL %r: No host supplied" % url)
+
+        # Only want to apply IDNA to the hostname
+        try:
+            host = host.encode('idna').decode('utf-8')
+        except UnicodeError:
+            raise InvalidURL('URL has an invalid label.')
+
+        # Carefully reconstruct the network location
+        netloc = auth or ''
+        if netloc:
+            netloc += '@'
+        netloc += host
+        if port:
+            netloc += ':' + str(port)
+
+        # Bare domains aren't valid URLs.
+        if not path:
+            path = '/'
+
+        if is_py2:
+            if isinstance(scheme, str):
+                scheme = scheme.encode('utf-8')
+            if isinstance(netloc, str):
+                netloc = netloc.encode('utf-8')
+            if isinstance(path, str):
+                path = path.encode('utf-8')
+            if isinstance(query, str):
+                query = query.encode('utf-8')
+            if isinstance(fragment, str):
+                fragment = fragment.encode('utf-8')
+
+        enc_params = self._encode_params(params)
+        if enc_params:
+            if query:
+                query = '%s&%s' % (query, enc_params)
+            else:
+                query = enc_params
+
+        url = requote_uri(urlunparse([scheme, netloc, path, None, query, fragment]))
+        self.url = url
+
+    def prepare_headers(self, headers):
+        """Prepares the given HTTP headers."""
+
+        if headers:
+            self.headers = CaseInsensitiveDict((to_native_string(name), value) for name, value in headers.items())
+        else:
+            self.headers = CaseInsensitiveDict()
+
+    def prepare_body(self, data, files, json=None):
+        """Prepares the given HTTP body data."""
+
+        # Check if file, fo, generator, iterator.
+        # If not, run through normal process.
 
         # Nottin' on you.
         body = None
         content_type = None
+        length = None
 
-        # Use .netrc auth if none was provided.
-        if not self.auth and self.config.get('trust_env'):
-            self.auth = get_netrc_auth(url)
+        if json is not None:
+            content_type = 'application/json'
+            body = json_dumps(json)
 
-        if self.auth:
-            if isinstance(self.auth, tuple) and len(self.auth) == 2:
+        is_stream = all([
+            hasattr(data, '__iter__'),
+            not isinstance(data, (basestring, list, tuple, dict))
+        ])
+
+        try:
+            length = super_len(data)
+        except (TypeError, AttributeError, UnsupportedOperation):
+            length = None
+
+        if is_stream:
+            body = data
+
+            if files:
+                raise NotImplementedError('Streamed bodies and files are mutually exclusive.')
+
+            if length is not None:
+                self.headers['Content-Length'] = builtin_str(length)
+            else:
+                self.headers['Transfer-Encoding'] = 'chunked'
+        else:
+            # Multi-part file uploads.
+            if files:
+                (body, content_type) = self._encode_files(files, data)
+            else:
+                if data and json is None:
+                    body = self._encode_params(data)
+                    if isinstance(data, basestring) or hasattr(data, 'read'):
+                        content_type = None
+                    else:
+                        content_type = 'application/x-www-form-urlencoded'
+
+            self.prepare_content_length(body)
+
+            # Add content-type if it wasn't explicitly provided.
+            if content_type and ('content-type' not in self.headers):
+                self.headers['Content-Type'] = content_type
+
+        self.body = body
+
+    def prepare_content_length(self, body):
+        if hasattr(body, 'seek') and hasattr(body, 'tell'):
+            body.seek(0, 2)
+            self.headers['Content-Length'] = builtin_str(body.tell())
+            body.seek(0, 0)
+        elif body is not None:
+            l = super_len(body)
+            if l:
+                self.headers['Content-Length'] = builtin_str(l)
+        elif (self.method not in ('GET', 'HEAD')) and (self.headers.get('Content-Length') is None):
+            self.headers['Content-Length'] = '0'
+
+    def prepare_auth(self, auth, url=''):
+        """Prepares the given HTTP auth data."""
+
+        # If no Auth is explicitly provided, extract it from the URL first.
+        if auth is None:
+            url_auth = get_auth_from_url(self.url)
+            auth = url_auth if any(url_auth) else None
+
+        if auth:
+            if isinstance(auth, tuple) and len(auth) == 2:
                 # special-case basic HTTP auth
-                self.auth = HTTPBasicAuth(*self.auth)
+                auth = HTTPBasicAuth(*auth)
 
             # Allow auth to make its changes.
-            r = self.auth(self)
+            r = auth(self)
 
             # Update self to reflect the auth changes.
             self.__dict__.update(r.__dict__)
 
-        # Multi-part file uploads.
-        if self.files:
-            (body, content_type) = self._encode_files(self.files)
+            # Recompute Content-Length
+            self.prepare_content_length(self.body)
+
+    def prepare_cookies(self, cookies):
+        """Prepares the given HTTP cookie data."""
+
+        if isinstance(cookies, cookielib.CookieJar):
+            self._cookies = cookies
         else:
-            if self.data:
+            self._cookies = cookiejar_from_dict(cookies)
 
-                body = self._encode_params(self.data)
-                if isinstance(self.data, str) or hasattr(self.data, 'read'):
-                    content_type = None
-                else:
-                    content_type = 'application/x-www-form-urlencoded'
+        cookie_header = get_cookie_header(self._cookies, self)
+        if cookie_header is not None:
+            self.headers['Cookie'] = cookie_header
 
-        # Add content-type if it wasn't explicitly provided.
-        if (content_type) and (not 'content-type' in self.headers):
-            self.headers['Content-Type'] = content_type
-
-        _p = urlparse(url)
-        no_proxy = filter(lambda x:x.strip(), self.proxies.get('no', '').split(','))
-        proxy = self.proxies.get(_p.scheme)
-
-        if proxy and not any(map(_p.netloc.endswith, no_proxy)):
-            conn = poolmanager.proxy_from_url(proxy)
-            _proxy = urlparse(proxy)
-            if '@' in _proxy.netloc:
-                auth, url = _proxy.netloc.split('@', 1)
-                self.proxy_auth = HTTPProxyAuth(*auth.split(':', 1))
-                r = self.proxy_auth(self)
-                self.__dict__.update(r.__dict__)
-        else:
-            # Check to see if keep_alive is allowed.
-            try:
-                if self.config.get('keep_alive'):
-                    conn = self._poolmanager.connection_from_url(url)
-                else:
-                    conn = connectionpool.connection_from_url(url)
-                    self.headers['Connection'] = 'close'
-            except LocationParseError as e:
-                raise InvalidURL(e)
-
-        if url.startswith('https') and self.verify:
-
-            cert_loc = None
-
-            # Allow self-specified cert location.
-            if self.verify is not True:
-                cert_loc = self.verify
-
-            # Look for configuration.
-            if not cert_loc and self.config.get('trust_env'):
-                cert_loc = os.environ.get('REQUESTS_CA_BUNDLE')
-
-            # Curl compatibility.
-            if not cert_loc and self.config.get('trust_env'):
-                cert_loc = os.environ.get('CURL_CA_BUNDLE')
-
-            if not cert_loc:
-                cert_loc = DEFAULT_CA_BUNDLE_PATH
-
-            if not cert_loc:
-                raise Exception("Could not find a suitable SSL CA certificate bundle.")
-
-            conn.cert_reqs = 'CERT_REQUIRED'
-            conn.ca_certs = cert_loc
-        else:
-            conn.cert_reqs = 'CERT_NONE'
-            conn.ca_certs = None
-
-        if self.cert:
-            if len(self.cert) == 2:
-                conn.cert_file = self.cert[0]
-                conn.key_file = self.cert[1]
-            else:
-                conn.cert_file = self.cert
-
-        if not self.sent or anyway:
-
-            # Skip if 'cookie' header is explicitly set.
-            if 'cookie' not in self.headers:
-                cookie_header = get_cookie_header(self.cookies, self)
-                if cookie_header is not None:
-                    self.headers['Cookie'] = cookie_header
-
-            # Pre-send hook.
-            r = dispatch_hook('pre_send', self.hooks, self)
-            self.__dict__.update(r.__dict__)
-
-            # catch urllib3 exceptions and throw Requests exceptions
-            try:
-                # Send the request.
-                r = conn.urlopen(
-                    method=self.method,
-                    url=self.path_url,
-                    body=body,
-                    headers=self.headers,
-                    redirect=False,
-                    assert_same_host=False,
-                    preload_content=False,
-                    decode_content=False,
-                    retries=self.config.get('max_retries', 0),
-                    timeout=self.timeout,
-                )
-                self.sent = True
-
-            except MaxRetryError as e:
-                raise ConnectionError(e)
-
-            except (_SSLError, _HTTPError) as e:
-                if isinstance(e, _SSLError):
-                    raise SSLError(e)
-                else:
-                    raise Timeout('Request timed out.')
-
-            # build_response can throw TooManyRedirects
-            self._build_response(r)
-
-            # Response manipulation hook.
-            self.response = dispatch_hook('response', self.hooks, self.response)
-
-            # Post-request hook.
-            r = dispatch_hook('post_request', self.hooks, self)
-            self.__dict__.update(r.__dict__)
-
-            # If prefetch is True, mark content as consumed.
-            if prefetch or self.prefetch:
-                # Save the response.
-                self.response.content
-
-            if self.config.get('danger_mode'):
-                self.response.raise_for_status()
-
-            return self.sent
+    def prepare_hooks(self, hooks):
+        """Prepares the given hooks."""
+        for event in hooks:
+            self.register_hook(event, hooks[event])
 
 
 class Response(object):
-    """The core :class:`Response <Response>` object. All
-    :class:`Request <Request>` objects contain a
-    :class:`response <Response>` attribute, which is an instance
-    of this class.
+    """The :class:`Response <Response>` object, which contains a
+    server's response to an HTTP request.
     """
 
+    __attrs__ = [
+        '_content',
+        'status_code',
+        'headers',
+        'url',
+        'history',
+        'encoding',
+        'reason',
+        'cookies',
+        'elapsed',
+        'request',
+    ]
+
     def __init__(self):
+        super(Response, self).__init__()
 
         self._content = False
         self._content_consumed = False
 
-        #: Integer Code of responded HTTP Status.
+        #: Integer Code of responded HTTP Status, e.g. 404 or 200.
         self.status_code = None
 
         #: Case-insensitive Dictionary of Response Headers.
@@ -647,30 +551,53 @@ class Response(object):
         self.headers = CaseInsensitiveDict()
 
         #: File-like object representation of response (for advanced usage).
+        #: Use of ``raw`` requires that ``stream=True`` be set on the request.
+        # This requirement does not apply for use internally to Requests.
         self.raw = None
 
         #: Final URL location of Response.
         self.url = None
-
-        #: Resulting :class:`HTTPError` of request, if one occurred.
-        self.error = None
 
         #: Encoding to decode with when accessing r.text.
         self.encoding = None
 
         #: A list of :class:`Response <Response>` objects from
         #: the history of the Request. Any redirect responses will end
-        #: up here.
+        #: up here. The list is sorted from the oldest to the most recent request.
         self.history = []
 
-        #: The :class:`Request <Request>` that created the Response.
-        self.request = None
+        #: Textual reason of responded HTTP Status, e.g. "Not Found" or "OK".
+        self.reason = None
 
         #: A CookieJar of Cookies the server sent back.
-        self.cookies = None
+        self.cookies = cookiejar_from_dict({})
 
-        #: Dictionary of configurations for this request.
-        self.config = {}
+        #: The amount of time elapsed between sending the request
+        #: and the arrival of the response (as a timedelta)
+        self.elapsed = datetime.timedelta(0)
+
+        #: The :class:`PreparedRequest <PreparedRequest>` object to which this
+        #: is a response.
+        self.request = None
+
+    def __getstate__(self):
+        # Consume everything; accessing the content attribute makes
+        # sure the content has been fully read.
+        if not self._content_consumed:
+            self.content
+
+        return dict(
+            (attr, getattr(self, attr, None))
+            for attr in self.__attrs__
+        )
+
+    def __setstate__(self, state):
+        for name, value in state.items():
+            setattr(self, name, value)
+
+        # pickled objects do not have .raw
+        setattr(self, '_content_consumed', True)
+        setattr(self, 'raw', None)
 
     def __repr__(self):
         return '<Response [%s]>' % (self.status_code)
@@ -683,55 +610,100 @@ class Response(object):
         """Returns true if :attr:`status_code` is 'OK'."""
         return self.ok
 
+    def __iter__(self):
+        """Allows you to use a response as an iterator."""
+        return self.iter_content(128)
+
     @property
     def ok(self):
         try:
             self.raise_for_status()
-        except RequestException:
+        except HTTPError:
             return False
         return True
 
-    def iter_content(self, chunk_size=1, decode_unicode=False):
-        """Iterates over the response data.  This avoids reading the content
-        at once into memory for large responses.  The chunk size is the number
-        of bytes it should read into memory.  This is not necessarily the
-        length of each item returned as decoding can take place.
+    @property
+    def is_redirect(self):
+        """True if this Response is a well-formed HTTP redirect that could have
+        been processed automatically (by :meth:`Session.resolve_redirects`).
         """
-        if self._content_consumed:
-            raise RuntimeError(
-                'The content for this response was already consumed'
-            )
+        return ('location' in self.headers and self.status_code in REDIRECT_STATI)
 
+    @property
+    def is_permanent_redirect(self):
+        """True if this Response one of the permanant versions of redirect"""
+        return ('location' in self.headers and self.status_code in (codes.moved_permanently, codes.permanent_redirect))
+
+    @property
+    def apparent_encoding(self):
+        """The apparent encoding, provided by the chardet library"""
+        return chardet.detect(self.content)['encoding']
+
+    def iter_content(self, chunk_size=1, decode_unicode=False):
+        """Iterates over the response data.  When stream=True is set on the
+        request, this avoids reading the content at once into memory for
+        large responses.  The chunk size is the number of bytes it should
+        read into memory.  This is not necessarily the length of each item
+        returned as decoding can take place.
+
+        If decode_unicode is True, content will be decoded using the best
+        available encoding based on the response.
+        """
         def generate():
-            while 1:
-                chunk = self.raw.read(chunk_size)
-                if not chunk:
-                    break
-                yield chunk
+            try:
+                # Special case for urllib3.
+                try:
+                    for chunk in self.raw.stream(chunk_size, decode_content=True):
+                        yield chunk
+                except ProtocolError as e:
+                    raise ChunkedEncodingError(e)
+                except DecodeError as e:
+                    raise ContentDecodingError(e)
+                except ReadTimeoutError as e:
+                    raise ConnectionError(e)
+            except AttributeError:
+                # Standard file-like object.
+                while True:
+                    chunk = self.raw.read(chunk_size)
+                    if not chunk:
+                        break
+                    yield chunk
+
             self._content_consumed = True
 
-        gen = stream_untransfer(generate(), self)
+        if self._content_consumed and isinstance(self._content, bool):
+            raise StreamConsumedError()
+        # simulate reading small chunks of the content
+        reused_chunks = iter_slices(self._content, chunk_size)
+
+        stream_chunks = generate()
+
+        chunks = reused_chunks if self._content_consumed else stream_chunks
 
         if decode_unicode:
-            gen = stream_decode_response_unicode(gen, self)
+            chunks = stream_decode_response_unicode(chunks, self)
 
-        return gen
+        return chunks
 
-    def iter_lines(self, chunk_size=10 * 1024, decode_unicode=None):
-        """Iterates over the response data, one line at a time.  This
-        avoids reading the content at once into memory for large
-        responses.
+    def iter_lines(self, chunk_size=ITER_CHUNK_SIZE, decode_unicode=None, delimiter=None):
+        """Iterates over the response data, one line at a time.  When
+        stream=True is set on the request, this avoids reading the
+        content at once into memory for large responses.
+
+        .. note:: This method is not reentrant safe.
         """
 
         pending = None
 
-        for chunk in self.iter_content(
-            chunk_size=chunk_size,
-            decode_unicode=decode_unicode):
+        for chunk in self.iter_content(chunk_size=chunk_size, decode_unicode=decode_unicode):
 
             if pending is not None:
                 chunk = pending + chunk
-            lines = chunk.splitlines()
+
+            if delimiter:
+                lines = chunk.split(delimiter)
+            else:
+                lines = chunk.splitlines()
 
             if lines and lines[-1] and chunk and lines[-1][-1] == chunk[-1]:
                 pending = lines.pop()
@@ -755,7 +727,7 @@ class Response(object):
                     raise RuntimeError(
                         'The content for this response was already consumed')
 
-                if self.status_code is 0:
+                if self.status_code == 0:
                     self._content = None
                 else:
                     self._content = bytes().join(self.iter_content(CONTENT_CHUNK_SIZE)) or bytes()
@@ -764,14 +736,21 @@ class Response(object):
                 self._content = None
 
         self._content_consumed = True
+        # don't need to release the connection; that's been handled by urllib3
+        # since we exhausted the data.
         return self._content
 
     @property
     def text(self):
         """Content of the response, in unicode.
 
-        if Response.encoding is None and chardet module is available, encoding
-        will be guessed.
+        If Response.encoding is None, encoding will be guessed using
+        ``chardet``.
+
+        The encoding of the response content is determined based solely on HTTP
+        headers, following RFC 2616 to the letter. If you can take advantage of
+        non-HTTP knowledge to make a better guess at the encoding, you should
+        set ``r.encoding`` appropriately before accessing this property.
         """
 
         # Try charset from content-type
@@ -783,51 +762,81 @@ class Response(object):
 
         # Fallback to auto-detected encoding.
         if self.encoding is None:
-            if chardet is not None:
-                encoding = chardet.detect(self.content)['encoding']
+            encoding = self.apparent_encoding
 
         # Decode unicode from given encoding.
         try:
             content = str(self.content, encoding, errors='replace')
-        except LookupError:
+        except (LookupError, TypeError):
             # A LookupError is raised if the encoding was not found which could
             # indicate a misspelling or similar mistake.
+            #
+            # A TypeError can be raised if encoding is None
             #
             # So we try blindly encoding.
             content = str(self.content, errors='replace')
 
         return content
 
-    @property
-    def json(self):
-        """Returns the json-encoded content of a request, if any."""
-        try:
-            return json.loads(self.text or self.content)
-        except ValueError:
-            return None
+    def json(self, **kwargs):
+        """Returns the json-encoded content of a response, if any.
+
+        :param \*\*kwargs: Optional arguments that ``json.loads`` takes.
+        """
+
+        if not self.encoding and len(self.content) > 3:
+            # No encoding set. JSON RFC 4627 section 3 states we should expect
+            # UTF-8, -16 or -32. Detect which one to use; If the detection or
+            # decoding fails, fall back to `self.text` (using chardet to make
+            # a best guess).
+            encoding = guess_json_utf(self.content)
+            if encoding is not None:
+                try:
+                    return json.loads(self.content.decode(encoding), **kwargs)
+                except UnicodeDecodeError:
+                    # Wrong UTF codec detected; usually because it's not UTF-8
+                    # but some other 8-bit codec.  This is an RFC violation,
+                    # and the server didn't bother to tell us what codec *was*
+                    # used.
+                    pass
+        return json.loads(self.text, **kwargs)
 
     @property
-    def reason(self):
-        """The HTTP Reason for the response."""
-        return self.raw.reason
+    def links(self):
+        """Returns the parsed header links of the response, if any."""
 
-    def raise_for_status(self, allow_redirects=True):
-        """Raises stored :class:`HTTPError` or :class:`URLError`, if one occurred."""
+        header = self.headers.get('link')
 
-        if self.error:
-            raise self.error
+        # l = MultiDict()
+        l = {}
 
-        if (self.status_code >= 300) and (self.status_code < 400) and not allow_redirects:
-            http_error = HTTPError('%s Redirection' % self.status_code)
-            http_error.response = self
-            raise http_error
+        if header:
+            links = parse_header_links(header)
 
-        elif (self.status_code >= 400) and (self.status_code < 500):
-            http_error = HTTPError('%s Client Error' % self.status_code)
-            http_error.response = self
-            raise http_error
+            for link in links:
+                key = link.get('rel') or link.get('url')
+                l[key] = link
 
-        elif (self.status_code >= 500) and (self.status_code < 600):
-            http_error = HTTPError('%s Server Error' % self.status_code)
-            http_error.response = self
-            raise http_error
+        return l
+
+    def raise_for_status(self):
+        """Raises stored :class:`HTTPError`, if one occurred."""
+
+        http_error_msg = ''
+
+        if 400 <= self.status_code < 500:
+            http_error_msg = '%s Client Error: %s' % (self.status_code, self.reason)
+
+        elif 500 <= self.status_code < 600:
+            http_error_msg = '%s Server Error: %s' % (self.status_code, self.reason)
+
+        if http_error_msg:
+            raise HTTPError(http_error_msg, response=self)
+
+    def close(self):
+        """Releases the connection back to the pool. Once this method has been
+        called the underlying ``raw`` object must not be accessed again.
+
+        *Note: Should not normally need to be called explicitly.*
+        """
+        return self.raw.release_conn()

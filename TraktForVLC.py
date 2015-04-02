@@ -91,7 +91,7 @@ class TraktForVLC(object):
             return
 
         # Else, we get the json answer
-        releases = github_releases.json
+        releases = github_releases.json()
 
         # If we didn't find any release
         if not releases:

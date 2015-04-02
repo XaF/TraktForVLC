@@ -7,47 +7,61 @@ requests.api
 This module implements the Requests API.
 
 :copyright: (c) 2012 by Kenneth Reitz.
-:license: ISC, see LICENSE for more details.
+:license: Apache2, see LICENSE for more details.
 
 """
 
 from . import sessions
-from .safe_mode import catch_exceptions_if_in_safe_mode
 
-@catch_exceptions_if_in_safe_mode
+
 def request(method, url, **kwargs):
     """Constructs and sends a :class:`Request <Request>`.
-    Returns :class:`Response <Response>` object.
 
     :param method: method for the new :class:`Request` object.
     :param url: URL for the new :class:`Request` object.
     :param params: (optional) Dictionary or bytes to be sent in the query string for the :class:`Request`.
-    :param data: (optional) Dictionary or bytes to send in the body of the :class:`Request`.
+    :param data: (optional) Dictionary, bytes, or file-like object to send in the body of the :class:`Request`.
+    :param json: (optional) json data to send in the body of the :class:`Request`.
     :param headers: (optional) Dictionary of HTTP Headers to send with the :class:`Request`.
     :param cookies: (optional) Dict or CookieJar object to send with the :class:`Request`.
-    :param files: (optional) Dictionary of 'name': file-like-objects (or {'name': ('filename', fileobj)}) for multipart encoding upload.
+    :param files: (optional) Dictionary of ``'name': file-like-objects`` (or ``{'name': ('filename', fileobj)}``) for multipart encoding upload.
     :param auth: (optional) Auth tuple to enable Basic/Digest/Custom HTTP Auth.
-    :param timeout: (optional) Float describing the timeout of the request.
+    :param timeout: (optional) How long to wait for the server to send data
+        before giving up, as a float, or a (`connect timeout, read timeout
+        <user/advanced.html#timeouts>`_) tuple.
+    :type timeout: float or tuple
     :param allow_redirects: (optional) Boolean. Set to True if POST/PUT/DELETE redirect following is allowed.
+    :type allow_redirects: bool
     :param proxies: (optional) Dictionary mapping protocol to the URL of the proxy.
-    :param return_response: (optional) If False, an un-sent Request object will returned.
-    :param session: (optional) A :class:`Session` object to be used for the request.
-    :param config: (optional) A configuration dictionary. See ``request.defaults`` for allowed keys and their default values.
     :param verify: (optional) if ``True``, the SSL cert will be verified. A CA_BUNDLE path can also be provided.
-    :param prefetch: (optional) if ``True``, the response content will be immediately downloaded.
+    :param stream: (optional) if ``False``, the response content will be immediately downloaded.
     :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair.
+    :return: :class:`Response <Response>` object
+    :rtype: requests.Response
+
+    Usage::
+
+      >>> import requests
+      >>> req = requests.request('GET', 'http://httpbin.org/get')
+      <Response [200]>
     """
 
-    s = kwargs.pop('session') if 'session' in kwargs else sessions.session()
-    return s.request(method=method, url=url, **kwargs)
-
+    session = sessions.Session()
+    response = session.request(method=method, url=url, **kwargs)
+    # By explicitly closing the session, we avoid leaving sockets open which
+    # can trigger a ResourceWarning in some cases, and look like a memory leak
+    # in others.
+    session.close()
+    return response
 
 
 def get(url, **kwargs):
-    """Sends a GET request. Returns :class:`Response` object.
+    """Sends a GET request.
 
     :param url: URL for the new :class:`Request` object.
     :param \*\*kwargs: Optional arguments that ``request`` takes.
+    :return: :class:`Response <Response>` object
+    :rtype: requests.Response
     """
 
     kwargs.setdefault('allow_redirects', True)
@@ -55,10 +69,12 @@ def get(url, **kwargs):
 
 
 def options(url, **kwargs):
-    """Sends a OPTIONS request. Returns :class:`Response` object.
+    """Sends a OPTIONS request.
 
     :param url: URL for the new :class:`Request` object.
     :param \*\*kwargs: Optional arguments that ``request`` takes.
+    :return: :class:`Response <Response>` object
+    :rtype: requests.Response
     """
 
     kwargs.setdefault('allow_redirects', True)
@@ -66,54 +82,65 @@ def options(url, **kwargs):
 
 
 def head(url, **kwargs):
-    """Sends a HEAD request. Returns :class:`Response` object.
+    """Sends a HEAD request.
 
     :param url: URL for the new :class:`Request` object.
     :param \*\*kwargs: Optional arguments that ``request`` takes.
+    :return: :class:`Response <Response>` object
+    :rtype: requests.Response
     """
 
     kwargs.setdefault('allow_redirects', False)
     return request('head', url, **kwargs)
 
 
-def post(url, data=None, **kwargs):
-    """Sends a POST request. Returns :class:`Response` object.
+def post(url, data=None, json=None, **kwargs):
+    """Sends a POST request.
 
     :param url: URL for the new :class:`Request` object.
-    :param data: (optional) Dictionary or bytes to send in the body of the :class:`Request`.
+    :param data: (optional) Dictionary, bytes, or file-like object to send in the body of the :class:`Request`.
+    :param json: (optional) json data to send in the body of the :class:`Request`.
     :param \*\*kwargs: Optional arguments that ``request`` takes.
+    :return: :class:`Response <Response>` object
+    :rtype: requests.Response
     """
 
-    return request('post', url, data=data, **kwargs)
+    return request('post', url, data=data, json=json, **kwargs)
 
 
 def put(url, data=None, **kwargs):
-    """Sends a PUT request. Returns :class:`Response` object.
+    """Sends a PUT request.
 
     :param url: URL for the new :class:`Request` object.
-    :param data: (optional) Dictionary or bytes to send in the body of the :class:`Request`.
+    :param data: (optional) Dictionary, bytes, or file-like object to send in the body of the :class:`Request`.
     :param \*\*kwargs: Optional arguments that ``request`` takes.
+    :return: :class:`Response <Response>` object
+    :rtype: requests.Response
     """
 
     return request('put', url, data=data, **kwargs)
 
 
 def patch(url, data=None, **kwargs):
-    """Sends a PATCH request. Returns :class:`Response` object.
+    """Sends a PATCH request.
 
     :param url: URL for the new :class:`Request` object.
-    :param data: (optional) Dictionary or bytes to send in the body of the :class:`Request`.
+    :param data: (optional) Dictionary, bytes, or file-like object to send in the body of the :class:`Request`.
     :param \*\*kwargs: Optional arguments that ``request`` takes.
+    :return: :class:`Response <Response>` object
+    :rtype: requests.Response
     """
 
     return request('patch', url,  data=data, **kwargs)
 
 
 def delete(url, **kwargs):
-    """Sends a DELETE request. Returns :class:`Response` object.
+    """Sends a DELETE request.
 
     :param url: URL for the new :class:`Request` object.
     :param \*\*kwargs: Optional arguments that ``request`` takes.
+    :return: :class:`Response <Response>` object
+    :rtype: requests.Response
     """
 
     return request('delete', url, **kwargs)

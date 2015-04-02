@@ -120,11 +120,11 @@ class TraktClient(object):
 
         # If the return code is not 200 or 201, we had an error
         if not stream.ok:
-            raise TraktError("Unable to authenticate: %s (%s %s)" % (
-                stream.error, stream.status_code, stream.reason))
+            raise TraktError("Unable to authenticate: %s %s" % (
+                stream.status_code, stream.reason))
 
         # If everything was fine, we search for the token in the response
-        resp = stream.json
+        resp = stream.json()
         self.log.debug("Response from Trakt: %s" % str(resp))
 
         if 'token' in resp.keys():
@@ -143,8 +143,8 @@ class TraktClient(object):
         stream = self.call_method('auth/logout', 'DELETE')
 
         if not stream.ok:
-            raise TraktError("Unable to logout: %s (%s %s)" %
-                             (stream.error, stream.status_code, stream.reason))
+            raise TraktError("Unable to logout: %s %s" %
+                             (stream.status_code, stream.reason))
 
         del self.headers['trakt-user-token']
 
@@ -175,12 +175,12 @@ class TraktClient(object):
 
             # If it was another error, we raise an error, as it's not normal
             videotype = ("episode" if "episode" in data else "movie")
-            raise TraktError("Unable to %s %s: %s (%s %s)" % (
-                action, videotype, stream.error, stream.status_code,
+            raise TraktError("Unable to %s %s: %s %s" % (
+                action, videotype, stream.status_code,
                 stream.reason))
         else:
             # Else, we just return the potential json response from the server
-            return stream.json
+            return stream.json()
 
     # Define an item as started, stopped or paused watching using
     # its imdb id, its progress and the fact it is or not an episode
