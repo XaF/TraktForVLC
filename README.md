@@ -24,7 +24,7 @@ TraktForVLC
         * [Using .bashrc](#using-bashrc)
       * [On Windows](#on-windows)
         * [Using scheduled tasks](#using-scheduled-tasks)
-    * [Issues](#issues)
+  * [Issues](#issues)
 
 ## Presentation
 
@@ -238,7 +238,7 @@ edit it to reflect the data and configuration directory of your TraktForVLC
 installation, then you can add this program as a scheduled task that starts when you
 open your session.
 
-### Issues
+## Issues
 Please use the [GitHub integrated issue tracker] [9] for every problem you can
 encounter. Please **DO NOT** use my email for issues or walkthrough.
 
