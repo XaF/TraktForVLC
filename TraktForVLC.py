@@ -22,6 +22,7 @@
 # or see <http://www.gnu.org/licenses/>.
 
 # Python lib import
+import ConfigParser
 from copy import deepcopy
 import datetime
 import getopt
@@ -38,7 +39,6 @@ from urllib import unquote
 from urlparse import urlparse
 
 # Local import
-import ConfigParser
 from filenameparser import parse_tv, parse_movie
 import movie_info
 import TraktClient
