@@ -323,6 +323,11 @@ def get_movie_info(movi_name, movi_year=''):
             search = ' '.join(word for word in search.split()
                               if word.lower() not in SPECIALCHARS)
 
+            # We verify that the new string is different from the previous
+            if search == movi_name:
+                # It's the same...
+                break
+
             # We verify that we still have words...
             search = search.split()
             if len(search) < 2:
