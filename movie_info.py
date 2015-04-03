@@ -18,6 +18,7 @@
 # or see <http://www.gnu.org/licenses/>.
 
 
+import logging
 import re
 import requests
 import difflib
@@ -226,6 +227,9 @@ info_list = [
 
 
 def get_movie_info(movi_name, movi_year=''):
+    # Load logger
+    LOG = logging.getLogger(__name__)
+
     # Formatting query to send
     query = {
         'i': '',
@@ -293,6 +297,11 @@ def get_movie_info(movi_name, movi_year=''):
                         selected['Title'].lower(),
                         movi_name.lower()).ratio()
 
+                    LOG.debug("DIFF_1 '%s' vs '%s' = %f" % (
+                        selected['Title'].lower(),
+                        movi_name.lower(),
+                        diff_movi_name))
+
                     similarEnough = False
                     if diff_movi_name >= 0.9:
                         similarEnough = True
@@ -309,6 +318,11 @@ def get_movie_info(movi_name, movi_year=''):
                                 None,
                                 selected['Title'].lower(),
                                 querySearch['s'].lower()).ratio()
+
+                            LOG.debug("DIFF_2 '%s' vs '%s' = %f" % (
+                                selected['Title'].lower(),
+                                querySearch['s'].lower(),
+                                diff_querySearch))
 
                             if diff_querySearch >= 0.9:
                                 similarEnough = True
@@ -336,6 +350,11 @@ def get_movie_info(movi_name, movi_year=''):
                             None,
                             ctitle.lower(),
                             querySearch['s'].lower()).ratio()
+
+                        LOG.debug("DIFF_3 '%s' vs '%s' = %f" % (
+                            ctitle.lower(),
+                            querySearch['s'].lower(),
+                            diff_ctitle))
 
                         if diff_ctitle >= 0.9:
                             similarEnough = True
