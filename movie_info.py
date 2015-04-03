@@ -319,9 +319,9 @@ def get_movie_info(movi_name, movi_year=''):
             # Last try: we remove common words and chars from the title
             search = movi_name
             search = ' '.join(word for word in search.split()
-                              if word not in STOPWORDS_EN)
+                              if word.lower() not in STOPWORDS_EN)
             search = ' '.join(word for word in search.split()
-                              if word not in SPECIALCHARS)
+                              if word.lower() not in SPECIALCHARS)
 
             # We verify that we still have words...
             search = search.split()
