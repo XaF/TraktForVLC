@@ -20,8 +20,6 @@
 
 import re
 import requests
-import urllib
-import json
 import difflib
 
 # English stopwords
@@ -212,7 +210,7 @@ SPECIALCHARS = set([
 
 
 # The base url to do the imdb requests to
-BASE_URL = 'http://www.imdbapi.com/?'
+BASE_URL = 'http://www.imdbapi.com/'
 
 # The list of information we want to extract from the requests results
 info_list = [
@@ -237,12 +235,10 @@ def get_movie_info(movi_name, movi_year=''):
     }
 
     # Searching for the movie directly
-    part = urllib.urlencode(query)
-    url = BASE_URL + part
-    response = requests.get(url)
+    response = requests.get(BASE_URL, params=query)
 
     # Parsing json
-    output = json.loads(response.content)
+    output = response.json()
 
     # If we don't have a direct match, or if our direct match isn't a movie
     if (('Response' in output.keys() and output['Response'] == 'False')
@@ -262,11 +258,10 @@ def get_movie_info(movi_name, movi_year=''):
             tries += 1
 
             # Sending the research
-            part = urllib.urlencode(querySearch)
-            responseSearch = requests.get(BASE_URL + part)
+            responseSearch = requests.get(BASE_URL, params=querySearch)
 
             # Parsing json
-            results = json.loads(responseSearch.content)
+            results = responseSearch.json()
 
             # If we have results
             if 'Search' in results.keys():
@@ -311,11 +306,10 @@ def get_movie_info(movi_name, movi_year=''):
                             'tomatoes': 'true'
                         }
 
-                        part = urllib.urlencode(query)
-                        response = requests.get(BASE_URL + part)
+                        response = requests.get(BASE_URL, params=query)
 
                         # And we parse the new json
-                        output = json.loads(response.content)
+                        output = response.json()
 
             # If we found the movie, or if we already tried to remove
             # the common words and special chars, we just stop now
