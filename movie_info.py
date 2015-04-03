@@ -284,19 +284,63 @@ def get_movie_info(movi_name, movi_year=''):
                     # We select the most similar
                     selected = bests[0]
 
-                    # And if its similarity is at least 90%, we act as
-                    # if it's the movie
+                    # And we now check the similarity following three
+                    # steps...
+                    # 1/ if the movie title is at least 90% similar to
+                    #    our request, we consider that we found it
                     diff_movi_name = difflib.SequenceMatcher(
                         None,
-                        selected['Title'],
-                        movi_name).ratio()
-                    diff_querySearch = difflib.SequenceMatcher(
-                        None,
-                        selected['Title'],
-                        querySearch['s']).ratio()
-                    if (diff_movi_name >= 0.9
-                            or (diff_querySearch >= 0.9
-                                and diff_movi_name >= 0.8)):
+                        selected['Title'].lower(),
+                        movi_name.lower()).ratio()
+
+                    similarEnough = False
+                    if diff_movi_name >= 0.9:
+                        similarEnough = True
+
+                    # 2/ Else, if the search string is different from
+                    #    our original request because it has been cleaned
+                    #    we check that the movie title is at least 90%
+                    #    similar to the search string and 80% similar
+                    #    to the original request
+                    if (not similarEnough
+                            and diff_movi_name >= 0.8):
+                        if movi_name != querySearch['s']:
+                            diff_querySearch = difflib.SequenceMatcher(
+                                None,
+                                selected['Title'].lower(),
+                                querySearch['s'].lower()).ratio()
+
+                            if diff_querySearch >= 0.9:
+                                similarEnough = True
+                        else:
+                            diff_querySearch = diff_movi_name
+
+                    # 3/ Finally, if we still haven't considered the
+                    #    movie we found as the one we searched for, we
+                    #    will clean its title using our common words list
+                    #    and special chars, and check if the cleaned
+                    #    movie title is at least 90% similar to our
+                    #    search string and the movie title at least
+                    #    80% similar to our search string and 70%
+                    #    similar to our original request.
+                    if (not similarEnough
+                            and diff_querySearch >= 0.8
+                            and diff_movi_name >= 0.7):
+                        ctitle = selected['Title']
+                        ctitle = ' '.join(word for word in ctitle.split()
+                                          if word.lower() not in STOPWORDS_EN)
+                        ctitle = ' '.join(word for word in ctitle.split()
+                                          if word.lower() not in SPECIALCHARS)
+
+                        diff_ctitle = difflib.SequenceMatcher(
+                            None,
+                            ctitle.lower(),
+                            querySearch['s'].lower()).ratio()
+
+                        if diff_ctitle >= 0.9:
+                            similarEnough = True
+
+                    if similarEnough:
                         found = True
 
                         # We make a new request using the imdbID of the found
