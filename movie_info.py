@@ -330,8 +330,8 @@ def get_movie_info(movi_name, movi_year=''):
 
             # We verify that we still have words...
             search = search.split()
-            if len(search) < 2:
-                # We have only one word...
+            if len(search) < 2 and len(search[0]) < 5:
+                # We have only one word of less than 5 characters...
                 break
 
             # We change the search string to use our new string
