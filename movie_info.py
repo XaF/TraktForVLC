@@ -342,7 +342,7 @@ def get_movie_info(movi_name, movi_year=''):
 
         # If we didn't find the movie, we raise an error
         if not found:
-            raise LookupError("%s: %s" % (movi_name, results['Error']))
+            raise LookupError("unable to find the movie '%s'" % (movi_name))
 
     # If we have found the movie, we organize its data to return it
     movie_info = {}
