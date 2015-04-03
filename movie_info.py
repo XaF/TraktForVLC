@@ -274,7 +274,7 @@ def get_movie_info(movi_name, movi_year=''):
                 filtered = [i for i in results['Search']
                             if i['Type'] == 'movie']
 
-                # If we had at least a movie in the list
+                # If we have at least a movie in the list
                 if filtered:
                     # We sort it by similarity with the request
                     bests = sorted(
