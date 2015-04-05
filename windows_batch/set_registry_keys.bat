@@ -22,7 +22,7 @@
 @echo off
 
 :: Change current directory to the directory where we have out batch file
-cd %~dp0
+cd /D %~dp0
 
 :: Load configuration file for the path needed
 call ".\config.bat"

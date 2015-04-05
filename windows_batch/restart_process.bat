@@ -20,7 +20,7 @@
 :: or see <http://www.gnu.org/licenses/>.
 
 :: Change current directory to the directory where we have out batch file
-cd %~dp0
+cd /D %~dp0
 
 :: Call the stop batch script
 call ".\stop_process.bat"
