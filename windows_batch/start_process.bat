@@ -23,7 +23,7 @@
 cd %~dp0
 
 :: Load configuration file for the path needed
-call config.bat
+call ".\config.bat"
 
 :: Please change both directories (python .exe and your script location)
 start "TraktForVLC" %python% %tfv_py% --datadir %tfv_data% --config %tfv_config% --pidfile %tfv_pidfile%

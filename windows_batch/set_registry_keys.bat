@@ -25,7 +25,7 @@
 cd %~dp0
 
 :: Load configuration file for the path needed
-call config.bat
+call ".\config.bat"
 
 echo ----------------------------------------------------------
 echo -     Add config to all your vlc files for TraktForVLC   -

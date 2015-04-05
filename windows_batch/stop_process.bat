@@ -22,7 +22,7 @@
 cd %~dp0
 
 :: Load configuration file for the path needed
-call config.bat
+call ".\config.bat"
 
 :: Get the PID of the TraktForVLC instance from the pidfile
 SET /P pid= < %tfv_pidfile%
