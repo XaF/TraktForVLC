@@ -57,4 +57,4 @@ set formats=avi, mkv, mov, mp4, wmv, ts, mpg
 :: Set the options you want to start VLC with. You should at least let
 :: the default for remote control (--extraintf=rc --rc-host=ip:port
 :: --rc-quiet)
-set vlc_opts=--extraintf=rc --rc-host="%ip%":"%port%" --rc-quiet
+set vlc_opts=--extraintf=rc --rc-host=\"%ip%\":\"%port%\" --rc-quiet
