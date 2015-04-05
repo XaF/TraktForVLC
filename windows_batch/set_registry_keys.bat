@@ -33,7 +33,7 @@ echo ----------------------------------------------------------
 
 echo VLC configuration : %ip%:%port%
 
-echo Editing your registry keys for formats "%vlc_formats%"
+echo Editing your registry keys for formats "%formats%"
 
 FOR %%G IN (%formats%) DO REG ADD "HKCR\VLC.%%G\shell\AddToPlaylistVLC\command" /ve /t REG_SZ /d "\"%vlc_path%" %vlc_opts% --started-from-file --playlist-enqueue \"%%1\"" /f >NUL
 FOR %%G IN (%formats%) DO REG ADD "HKCR\VLC.%%G\shell\Open\command" /ve /t REG_SZ /d "\"%vlc_path%" %vlc_opts% --started-from-file \"%%1\"" /f >NUL
