@@ -21,7 +21,7 @@ TraktForVLC
     * [Automatic start](#automatic-start)
       * [On Linux](#on-linux)
         * [Using Gnome](#using-gnome)
-        * [Using .bashrc](#using-bashrc)
+        * [Using .bash_profile](#using-bash-profile)
       * [On Windows](#on-windows)
         * [Using scheduled tasks](#using-scheduled-tasks)
   * [Issues](#issues)
@@ -226,10 +226,10 @@ path/to/your/TraktForVLC.py --daemon
 
 Your task will then automatically be started with your session.
 
-##### Using .bashrc
+##### Using .bash_profile
 If you want to start Trakt automatically with your session but don't want to use
 Gnome's **Startup Applications Preferences**, you can add the line proposed below
-directly in your `.bashrc` script.
+directly in your `.bash_profile` script.
 
 #### On Windows
 ##### Using scheduled tasks
