@@ -288,6 +288,7 @@ for pattern in movies_filename_patterns:
 
 
 def cleanRegexedName(name):
+    name = re.sub("[.](?!.(?:[.]|$))", " ", name)
     name = re.sub("(?<=[^. ]{2})[.]", " ", name)
     name = name.replace("_", " ")
     name = name.strip("-. ")
