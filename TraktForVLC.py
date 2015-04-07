@@ -217,42 +217,9 @@ class TraktForVLC(object):
 
         self.__check_version()
 
-        self.config = RawConfigParser()
-        self.config.read(configfile)
-
-        # Initialize timers
-        if SMALL_TIMERS:
-            self.TIMER_INTERVAL = 5
-            self.START_WATCHING_TIMER = 5
-        else:
-            self.TIMER_INTERVAL = int(self.config.get("TraktForVLC", "Timer"))
-            self.START_WATCHING_TIMER = int(
-                self.config.get("TraktForVLC", "StartWatching"))
-
-        # For the use of filenames instead of VLC window title
-        self.USE_FILENAME = (
-            True if self.config.get("TraktForVLC", "UseFilenames") == 'Yes'
-            else False)
-
-        # Do we have to scrobble ?
-        self.DO_SCROBBLE_MOVIE = (
-            True if self.config.get("TraktForVLC", "ScrobbleMovie") == 'Yes'
-            else False)
-        self.DO_SCROBBLE_TV = (
-            True if self.config.get("TraktForVLC", "ScrobbleTV") == 'Yes'
-            else False)
-
-        # Do we have to mark as watching ?
-        self.DO_WATCHING_MOVIE = (
-            True if self.config.get("TraktForVLC", "WatchingMovie") == 'Yes'
-            else False)
-        self.DO_WATCHING_TV = (
-            True if self.config.get("TraktForVLC", "WatchingTV") == 'Yes'
-            else False)
-
-        # What percent should we use to scrobble videos ?
-        self.SCROBBLE_PERCENT = int(
-            self.config.get("TraktForVLC", "ScrobblePercent"))
+        # Load configuration
+        self.configfile = configfile
+        self.__load_config()
 
         for loglvl, logstr in AVAILABLE_LOGLVL:
             if LOG_LEVEL <= loglvl:
@@ -313,6 +280,44 @@ class TraktForVLC(object):
         self.watching_now = ""
         self.vlcTime = 0
         self.vlc_connected = True
+
+    def __load_config(self):
+        self.config = RawConfigParser()
+        self.config.read(self.configfile)
+
+        # Initialize timers
+        if SMALL_TIMERS:
+            self.TIMER_INTERVAL = 5
+            self.START_WATCHING_TIMER = 5
+        else:
+            self.TIMER_INTERVAL = int(self.config.get("TraktForVLC", "Timer"))
+            self.START_WATCHING_TIMER = int(
+                self.config.get("TraktForVLC", "StartWatching"))
+
+        # For the use of filenames instead of VLC window title
+        self.USE_FILENAME = (
+            True if self.config.get("TraktForVLC", "UseFilenames") == 'Yes'
+            else False)
+
+        # Do we have to scrobble ?
+        self.DO_SCROBBLE_MOVIE = (
+            True if self.config.get("TraktForVLC", "ScrobbleMovie") == 'Yes'
+            else False)
+        self.DO_SCROBBLE_TV = (
+            True if self.config.get("TraktForVLC", "ScrobbleTV") == 'Yes'
+            else False)
+
+        # Do we have to mark as watching ?
+        self.DO_WATCHING_MOVIE = (
+            True if self.config.get("TraktForVLC", "WatchingMovie") == 'Yes'
+            else False)
+        self.DO_WATCHING_TV = (
+            True if self.config.get("TraktForVLC", "WatchingTV") == 'Yes'
+            else False)
+
+        # What percent should we use to scrobble videos ?
+        self.SCROBBLE_PERCENT = int(
+            self.config.get("TraktForVLC", "ScrobblePercent"))
 
     def resetCache(self, filename=None, filelength=None):
         self.log.debug("reset cache (%s, %s)" % (filename, filelength))
