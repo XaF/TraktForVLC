@@ -291,9 +291,9 @@ class TraktForVLC(object):
             self.TIMER_INTERVAL = 5
             self.START_WATCHING_TIMER = 5
         else:
-            self.TIMER_INTERVAL = int(self.config.get("TraktForVLC", "Timer"))
-            self.START_WATCHING_TIMER = int(
-                self.config.get("TraktForVLC", "StartWatching"))
+            self.TIMER_INTERVAL = self.config.getint("TraktForVLC", "Timer")
+            self.START_WATCHING_TIMER = self.config.getint(
+                "TraktForVLC", "StartWatching")
 
         # For the use of filenames instead of VLC window title
         self.USE_FILENAME = (
@@ -317,8 +317,8 @@ class TraktForVLC(object):
             else False)
 
         # What percent should we use to scrobble videos ?
-        self.SCROBBLE_PERCENT = int(
-            self.config.get("TraktForVLC", "ScrobblePercent"))
+        self.SCROBBLE_PERCENT = self.config.getint(
+            "TraktForVLC", "ScrobblePercent")
 
     def resetCache(self, filename=None, filelength=None):
         self.log.debug("reset cache (%s, %s)" % (filename, filelength))
