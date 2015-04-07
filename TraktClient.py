@@ -256,13 +256,3 @@ class TraktClient(object):
         # saying that the watch is at the end, so it will expire
         # soon after.
         return self.__watching('start', imdb_id, 99.99, episode)
-
-
-def main():
-    logging.basicConfig(level=logging.DEBUG)
-    tc = TraktClient("woowooslack", "passman")
-    tc._TraktClient__login()
-
-
-if __name__ == "__main__":
-    main()
