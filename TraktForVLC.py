@@ -283,6 +283,7 @@ class TraktForVLC(object):
 
     def __load_config(self):
         self.config = RawConfigParser()
+        self.config.optionxform = str
         self.config.read(self.configfile)
 
         # Initialize timers
