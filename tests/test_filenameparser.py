@@ -128,6 +128,11 @@ class FilenameParserTest(unittest.TestCase):
                 {'title': 'Kung Fu Hustle', 'year': '2004'}
             ),
             (
+                "Miss.Pettigrew.Lives.for.a.Day.2008.576p." +
+                "BDRip.x264-HANDJOB.mp4",
+                {'title': 'Miss Pettigrew Lives for a Day', 'year': '2008'}
+            ),
+            (
                 "Silence of the Lambs-480.mp4",
                 {'title': 'Silence of the Lambs-480', 'year': None}
             ),
