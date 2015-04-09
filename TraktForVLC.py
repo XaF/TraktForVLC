@@ -167,7 +167,7 @@ class TraktForVLC(object):
 
         self.log.info(lead + "###################")
 
-    def __init__(self, datadir, configfile):
+    def __init__(self, datadir, configfile, daemon=False):
 
         # Verify if the log directory exists or create it
         logdir = os.path.join(datadir, 'logs')
@@ -175,21 +175,27 @@ class TraktForVLC(object):
             os.mkdir(logdir)
 
         # Process log file name
-        if LOG_LEVEL is logging.DEBUG:
-            logfile = os.path.join(logdir, "TraktForVLC-DEBUG.log")
+        if daemon:
+            if LOG_LEVEL is logging.DEBUG:
+                logfile = os.path.join(logdir, "TraktForVLC-DEBUG.log")
 
-            # Remove existing DEBUG file
-            if os.path.isfile(logfile):
-                os.remove(logfile)
+                # Remove existing DEBUG file
+                if os.path.isfile(logfile):
+                    os.remove(logfile)
+            else:
+                logfile = os.path.join(
+                    logdir,
+                    "TraktForVLC-" + DATETIME.strftime("%Y%m%d-%H%M") + ".log")
+
+            logging.basicConfig(
+                format="%(asctime)s::%(name)s::%(levelname)s::%(message)s",
+                level=LOG_LEVEL,
+                filename=logfile)
         else:
-            logfile = os.path.join(
-                logdir,
-                "TraktForVLC-" + DATETIME.strftime("%Y%m%d-%H%M") + ".log")
-
-        logging.basicConfig(
-            format="%(asctime)s::%(name)s::%(levelname)s::%(message)s",
-            level=LOG_LEVEL,
-            filename=logfile)
+            logging.basicConfig(
+                format="%(asctime)s::%(name)s::%(levelname)s::%(message)s",
+                level=LOG_LEVEL,
+                stream=sys.stderr)
 
         self.log = logging.getLogger("TraktForVLC")
 
@@ -832,5 +838,8 @@ if __name__ == '__main__':
         config = datadir
     configfile = os.path.join(config, "config.ini")
 
-    client = TraktForVLC(datadir, configfile)
+    client = TraktForVLC(
+        datadir,
+        configfile,
+        daemon=(should_daemon or pidfile))
     client.run()
