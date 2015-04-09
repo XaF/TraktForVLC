@@ -260,23 +260,40 @@ class TraktForVLC(object):
         self.log.info("Listening VLC to " +
                       self.vlc_ip + ":" + str(self.vlc_port))
 
-        # Trakt configuration
-        trakt_api = ("0e59f99095515c228d5fbc104e342574" +
-                     "941aeeeda95946b8fa50b2b0366609bf")
-        trakt_username = self.config.get("Trakt", "Username")
-        trakt_password = self.config.get("Trakt", "Password")
+        # Trakt app configuration
+        trakt_id = ("0e59f99095515c228d5fbc104e342574" +
+                    "941aeeeda95946b8fa50b2b0366609bf")
+        trakt_sc = ("3ed1d013ef80eb0bb45d8da8424b4b61" +
+                    "3713abb057ed505683caf0baf1b5c650")
 
-        self.log.info("Connect to Trakt(" + trakt_username + ", *********)")
+        # Trakt user information
+        trakt = {
+            "PIN":              None,
+            "access_token":     None,
+            "refresh_token":    None,
+            "Username":         None,  # Now deprecated in Trakt v2 API
+            "Password":         None,  # Now deprecated in Trakt v2 API
+        }
+        for opt in trakt.keys():
+            if self.config.has_option("Trakt", opt):
+                trakt[opt] = self.config.get("Trakt", opt)
 
         # Initialize Trakt client
         modifiedTime = time.strftime(
             '%Y-%m-%d',
             time.gmtime(os.path.getmtime(__file__)))
-        self.trakt_client = TraktClient.TraktClient(trakt_username,
-                                                    trakt_password,
-                                                    trakt_api,
-                                                    __version__,
-                                                    modifiedTime)
+        self.trakt_client = TraktClient.TraktClient({
+            'username':         trakt['Username'],
+            'password':         trakt['Password'],
+            'client_id':        trakt_id,
+            'client_secret':    trakt_sc,
+            'app_version':      __version__,
+            'app_date':         modifiedTime,
+            'pin':              trakt['PIN'],
+            'access_token':     trakt['access_token'],
+            'refresh_token':    trakt['refresh_token'],
+            'callback_token':   self.__callback_token_change,
+        })
 
         # Initialize TraktForVLC's cache
         self.resetCache()
@@ -326,6 +343,23 @@ class TraktForVLC(object):
         # What percent should we use to scrobble videos ?
         self.SCROBBLE_PERCENT = self.config.getint(
             "TraktForVLC", "ScrobblePercent")
+
+    def __callback_token_change(self, access_token, refresh_token):
+        if self.config.has_option('Trakt', 'PIN'):
+            self.config.remove_option('Trakt', 'PIN')
+
+        self.config.set('Trakt', 'access_token', access_token)
+        self.config.set('Trakt', 'refresh_token', refresh_token)
+
+        if not self.__save_config():
+            self.log.debug("Error while saving tokens in configuration file!")
+
+    def __save_config(self):
+        saved = False
+        with open(self.configfile, 'wb') as configfile:
+            self.config.write(configfile)
+            saved = True
+        return saved
 
     def resetCache(self, filename=None, filelength=None):
         self.log.debug("reset cache (%s, %s)" % (filename, filelength))

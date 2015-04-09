@@ -41,7 +41,11 @@ class TraktClientTest(unittest.TestCase):
     def __get_mock_client(self):
         TraktClient.api_url = (
             "https://private-anon-e4bdfe2c3-trakt.apiary-mock.com/")
-        tc = TraktClient.TraktClient("username", "password", "client_id")
+        tc = TraktClient.TraktClient({
+            'access_token':     'access_token',
+            'client_id':        'client_id',
+            'client_secret':    'client_secret',
+        })
         return tc
 
     def test_mock_startWatching(self):

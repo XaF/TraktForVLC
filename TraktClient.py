@@ -29,7 +29,6 @@ import json
 # Trakt API URL for v2
 api_url = 'https://api-v2launch.trakt.tv/'
 
-
 # Whether or not to verify HTTPS certificates when calling the API
 verifyHTTPS = True
 
@@ -55,10 +54,97 @@ class TraktError(Exception):
 # TraktClient class
 class TraktClient(object):
 
-    # Initialize the TraktClient class by passing the username and
-    # password of the user
-    def __init__(self, username, password, client_id,
-                 app_version="unknown", app_date="unknown"):
+    # Initialize the TraktClient and choose the best init mode
+    def __init__(self, params):
+        # Prepare the logging interface
+        self.log = logging.getLogger("TraktClient")
+        self.log.debug("TraktClient logger initialized")
+
+        # The parameters we can receive
+        allowed_params = [
+            'username',         # Deprecated in Trakt v2 API
+            'password',         # Deprecated in Trakt v2 API
+            'client_id',
+            'client_secret',
+            'app_version',
+            'app_date',
+            'pin',
+            'refresh_token',
+            'access_token',
+            'callback_token',
+        ]
+
+        # We know we absolutely need the client id of the app
+        # no matter what, raise an error if it's not there
+        if 'client_id' not in params or not params['client_id']:
+            raise TraktError("client id needed to auth")
+
+        # We check we only received valid parameters
+        for received_param in params.keys():
+            if received_param not in allowed_params:
+                raise TraktError("Unknown parameter '%s'" % received_param +
+                                 "to instantiate TraktClient")
+
+        # We now can check which instance we will run
+        if (('pin' in params and params['pin'])
+                or ('access_token' in params and params['access_token'])
+                or ('refresh_token' in params and params['refresh_token'])):
+            # We know we absolutely need the client secret of the
+            # app for that auth, raise an error if it's not there
+            if 'client_secret' not in params or not params['client_secret']:
+                raise TraktError("client secret needed to use PIN auth")
+
+            # We can do PIN auth, we thus prepare the call to the
+            # PIN auth init function
+            initp = {
+                'pin':              None,
+                'access_token':     None,
+                'refresh_token':    None,
+                'client_id':        None,
+                'client_secret':    None,
+                'callback_token':   None,
+                'app_version':      'unknown',
+                'app_date':         'unknown',
+            }
+            # And load the received parameters
+            for key in initp.keys():
+                if key in params:
+                    initp[key] = params[key]
+
+            # Then we make the call
+            self.__init_pin(**initp)
+
+        elif ('username' in params and params['username']
+                and 'password' in params and params['password']):
+            # We can do token auth, we thus prepare the call to the
+            # token auth init function
+            initp = {
+                'username':     None,
+                'password':     None,
+                'client_id':    None,
+                'app_version':  'unknown',
+                'app_date':     'unknown',
+            }
+            # And load the received parameters
+            for key in initp.keys():
+                if key in params:
+                    initp[key] = params[key]
+
+            # Then we make the call
+            self.__init_token(**initp)
+
+        else:
+            # Not enough information to try an auth
+            raise TraktError("Not enough information given to " +
+                             "start a TraktClient instance")
+
+    # Initialize the TraktClient class for a token auth session
+    def __init_token(self, username, password, client_id,
+                     app_version="unknown", app_date="unknown"):
+        # Save auth type
+        self.auth = 'token'
+        self.log.debug("TraktClient will use Token Auth")
+
         # Save those information inside the class
         self.username = username
         self.password = password
@@ -73,9 +159,35 @@ class TraktClient(object):
             'trakt-user-login':     username,
         }
 
-        # Prepare the logging interface
-        self.log = logging.getLogger("TraktClient")
-        self.log.debug("TraktClient logger initialized")
+    # Initialize the TraktClient class for a pin auth session
+    def __init_pin(self, pin, access_token, refresh_token, client_id,
+                   client_secret, callback_token=None,
+                   app_version="unknown", app_date="unknown"):
+        # Save auth type
+        self.auth = 'pin'
+        self.log.debug("TraktClient will use PIN Auth")
+
+        # Save those information inside the class
+        self.pin = pin
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.access_token = access_token
+        self.refresh_token = refresh_token
+        self.callback_token = callback_token
+        self.app_version = app_version
+        self.app_date = app_date
+
+        # Define global headers for API communication
+        self.headers = {
+            'Content-Type':         'application/json',
+            'trakt-api-version':    '2',
+            'trakt-api-key':        client_id,
+        }
+
+        # If the access token is available, we can set
+        # it directly to avoid a 4xx error
+        if access_token:
+            self.__set_access_token()
 
     # Method used to call the API
     def call_method(self, method, verb='POST', data={}, retry=3):
@@ -151,6 +263,68 @@ class TraktClient(object):
         self.log.debug("Logged out")
         return
 
+    # Get access token from either code or refresh_token
+    def __get_access_token(self):
+        # Prepare the data to send
+        data = {
+            'client_id':            self.client_id,
+            'client_secret':        self.client_secret,
+            'redirect_uri':         'urn:ietf:wg:oauth:2.0:oob',
+        }
+
+        # Add the specific data depending on whether we are
+        # asking a new access token from a PIN or if we are
+        # renewing one
+        if self.pin:
+            data.update({
+                'code':             self.pin,
+                'grant_type':       'authorization_code',
+            })
+        else:
+            data.update({
+                'refresh_token':    self.refresh_token,
+                'grant_type':       'refresh_token',
+            })
+
+        # Use the call_method method to login
+        stream = self.call_method('oauth/token', 'POST', data)
+
+        # If the return code is not 200 or 201, we had an error
+        if not stream.ok:
+            raise TraktError("Unable to authenticate: %s %s" % (
+                stream.status_code, stream.reason))
+
+        # If everything was fine, we search for the token in the response
+        resp = stream.json()
+        self.log.debug("Response from Trakt: %s" % str(resp))
+
+        if 'access_token' in resp.keys():
+            # We save the access and refresh tokens
+            self.access_token = resp['access_token']
+            self.refresh_token = resp['refresh_token']
+            self.pin = None
+
+            # We call the callback function to inform we have new tokens
+            if self.callback_token:
+                self.callback_token(self.access_token, self.refresh_token)
+
+            # Set the access token
+            self.__set_access_token()
+
+            self.log.debug("Authenticated, token found")
+            return
+
+        # If no token was found, we raise an error
+        raise TraktError(
+            "Unable to authenticate: no token found in json %s" % str(resp))
+
+    # Set the access token in the headers
+    def __set_access_token(self):
+        # We add that token to the headers we'll send for each request
+        self.headers.update({
+            'Authorization':    'Bearer %s' % self.access_token,
+        })
+
     # Define an item as started, stopped or paused watching using
     # data passed as argument to identify that item
     def __scrobble(self, action, data, retry=False):
@@ -169,7 +343,11 @@ class TraktClient(object):
             # we can call again that function. We try again just one time
             # in case the 401 error was not due to authentication
             if not retry and stream.status_code == 401:
-                self.__login()
+                if self.auth == 'pin':
+                    self.__get_access_token()
+                elif self.auth == 'token':
+                    self.__login()
+
                 self.__scrobble(action, data, True)
                 return
 
