@@ -278,6 +278,7 @@ class TraktForVLC(object):
                                                     __version__,
                                                     modifiedTime)
 
+        # Initialize TraktForVLC's cache
         self.resetCache()
 
         # Initialize tvdb api
