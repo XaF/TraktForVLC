@@ -1,4 +1,4 @@
-TraktForVLC
+TraktForVLC [![Build Status](https://travis-ci.org/XaF/TraktForVLC.svg?branch=master)](https://travis-ci.org/XaF/TraktForVLC)
 ===========
 
 ## Table of Contents
