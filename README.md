@@ -75,6 +75,11 @@ share.
 
 #### Python version
 This version of TraktForVLC has been tested using Python 2.7.9 and Python 3.4.2
+It should however be compatible with the following versions:
++ Python 2.6
++ Python 2.7
++ Python 3.3
++ Python 3.4
 
 #### VLC version
 This version of TraktForVLC has been tested using VLC 2.2.0 Weatherwax
