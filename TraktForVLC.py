@@ -36,6 +36,7 @@ import getopt
 import logging
 import os
 from pkg_resources import parse_version
+import platform
 import re
 import requests
 import signal
@@ -210,6 +211,9 @@ class TraktForVLC(object):
                            configfile +
                            " not found, exiting.")
             exit()
+
+        self.log.debug("Running on %s, with Python %s" % (
+            platform.platform(), platform.python_version()))
 
         self.__check_version()
 
