@@ -1,4 +1,4 @@
-TraktForVLC [![Build Status](https://travis-ci.org/XaF/TraktForVLC.svg?branch=master)](https://travis-ci.org/XaF/TraktForVLC)
+TraktForVLC [![Travis Build Status](https://travis-ci.org/XaF/TraktForVLC.svg?branch=master)](https://travis-ci.org/XaF/TraktForVLC) [![AppVeyor Build status](https://ci.appveyor.com/api/projects/status/e1ie51bwhbki60ns/branch/master?svg=true)](https://ci.appveyor.com/project/XaF/traktforvlc/branch/master)
 ===========
 
 ## Table of Contents
