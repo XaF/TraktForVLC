@@ -1,0 +1,61 @@
+version: '{branch}.{build}'
+skip_tags: true
+environment:
+  matrix:
+    - PYTHON: "2.6"
+      PYTHON_INSTALL: "2.6.6"
+
+    - PYTHON: "2.7"
+      PYTHON_INSTALL: "2.7.9"
+
+    - PYTHON: "3.3"
+      PYTHON_INSTALL: "3.3.5"
+
+    - PYTHON: "3.4"
+      PYTHON_INSTALL: "3.4.3"
+
+platform:
+  - x86
+  - x64
+
+install:
+  # Set the home for the Python version
+  - set "PYTHON_HOME=C:\\Python%PYTHON:.=%"
+  - if [%PLATFORM%]==[x64] set "PYTHON_HOME=%PYTHON_HOME%-x64"
+
+  # Print environment information
+  - "echo Environment: Python %PYTHON% / Platform %PLATFORM% / %PYTHON_HOME%"
+
+  # Install and configure Python in the path to use the needed version
+  - if not exist "%PYTHON_HOME%" ( set "NEEDINSTALL=True" ) else ( set "NEEDINSTALL=False" )
+  - "echo Does Python %PYTHON% (%PLATFORM%) need to be installed? %NEEDINSTALL%"
+  - if [%NEEDINSTALL%]==[True] (
+        if [%PLATFORM%]==[x64] (
+            set "PYTHON_DL=python-%PYTHON_INSTALL%.amd64.msi"
+        ) else (
+            set "PYTHON_DL=python-%PYTHON_INSTALL%.msi"
+        )
+    )
+  - if [%NEEDINSTALL%]==[True] (
+        echo Downloading https://www.python.org/ftp/python/%PYTHON_INSTALL%/%PYTHON_DL% &
+        appveyor DownloadFile https://www.python.org/ftp/python/%PYTHON_INSTALL%/%PYTHON_DL% &
+        echo Installing %PYTHON_DL% in %PYTHON_HOME% &
+        msiexec /i %PYTHON_DL% /qn TARGETDIR=%PYTHON_HOME%
+    )
+  - set "PATH=%PYTHON_HOME%;%PYTHON_HOME%\\Scripts;%PATH%"
+  - "python --version"
+  - "python -c \"import struct; print(struct.calcsize('P') * 8)\""
+
+  # Install pip
+  - appveyor DownloadFile https://bootstrap.pypa.io/get-pip.py
+  - "python get-pip.py"
+  - "pip --version"
+
+  # Install dependencies
+  - "pip install nose"
+  - if [%PYTHON%]==[2.6] pip install unittest2
+
+build: false
+
+test_script:
+  - "nosetests -vv -w tests/"
