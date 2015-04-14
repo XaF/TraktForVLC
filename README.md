@@ -13,17 +13,18 @@ TraktForVLC [![Travis Build Status](https://travis-ci.org/XaF/TraktForVLC.svg?br
       * [Python version](#python-version)
       * [VLC version](#vlc-version)
     * [Getting sources](#getting-sources)
+  * [Configuration](#configuration)
     * [Configuring VLC](#configuring-vlc)
       * [With VLC Settings](#with-vlc-settings)
       * [With command line](#with-command-line)
       * [Automatic configuration on Windows (without guarantee)](#automatic-configuration-on-windows-without-guarantee)
     * [Configuring TraktForVLC](#configuring-traktforvlc)
-    * [Automatic start](#automatic-start)
-      * [On Linux](#on-linux)
-        * [Using Gnome](#using-gnome)
-        * [Using .bash_profile](#using-bash-profile)
-      * [On Windows](#on-windows)
-        * [Using scheduled tasks](#using-scheduled-tasks)
+  * [Automatic start](#automatic-start)
+    * [On Linux](#on-linux)
+      * [Using Gnome](#using-gnome)
+      * [Using .bash_profile](#using-bash-profile)
+    * [On Windows](#on-windows)
+      * [Using scheduled tasks](#using-scheduled-tasks)
   * [Issues](#issues)
 
 ## Presentation
@@ -94,6 +95,7 @@ git clone https://github.com/XaF/TraktForVLC.git
 
 On [Windows] [7], you can download the [last version of the ZIP package] [8].
 
+## Configuration
 ### Configuring VLC
 #### With VLC Settings
 Go to:
@@ -212,16 +214,16 @@ This is the script-specific configuration, the time between each loop of
 work, the time before considering you're effectively watching a video, and
 whether or not scrobble automatically what you're watching on [trakt.tv] [1].
 
-### Automatic start
+## Automatic start
 This script needs to be kept alive, and to be working when you start watching
 something. Achieving this need is very different if you're on [Linux] [5] or
 [Windows] [7]. This part aims to guide you to do these steps.
 
-#### On Linux
+### On Linux
 There is different way to realize what we want to do on Linux. I'll just give
 here two different and simple ways as reference.
 
-##### Using Gnome
+#### Using Gnome
 Go to your **Startup Applications Preferences**, then click on the **Add** button.
 Here, you can give the name you want to your task, and you only need to add the
 following line in the **Command** box:
@@ -231,13 +233,13 @@ path/to/your/TraktForVLC.py --daemon
 
 Your task will then automatically be started with your session.
 
-##### Using .bash_profile
+#### Using .bash_profile
 If you want to start Trakt automatically with your session but don't want to use
 Gnome's **Startup Applications Preferences**, you can add the line proposed below
 directly in your `.bash_profile` script.
 
-#### On Windows
-##### Using scheduled tasks
+### On Windows
+#### Using scheduled tasks
 A `start_process.bat` file is joined to the source files of TraktForVLC. You need to
 edit it to reflect the data and configuration directory of your TraktForVLC
 installation, then you can add this program as a scheduled task that starts when you
