@@ -22,9 +22,11 @@ TraktForVLC [![Travis Build Status](https://travis-ci.org/XaF/TraktForVLC.svg?br
   * [Automatic start](#automatic-start)
     * [On Linux](#on-linux)
       * [Using Gnome](#using-gnome)
-      * [Using .bash_profile](#using-bash-profile)
+      * [Using <code>.bash_profile</code>](#using-bash-profile)
     * [On Windows](#on-windows)
       * [Using scheduled tasks](#using-scheduled-tasks)
+    * [On Mac OS X](#on-mac-os-x)
+      * [Using a <code>.plist</code> file](#using-a-plist-file)
   * [Issues](#issues)
 
 ## Presentation
@@ -236,7 +238,7 @@ path/to/your/TraktForVLC.py --daemon
 
 Your task will then automatically be started with your session.
 
-#### Using .bash_profile
+#### Using ```.bash_profile```
 If you want to start Trakt automatically with your session but don't want to use
 Gnome's **Startup Applications Preferences**, you can add the line proposed below
 directly in your `.bash_profile` script.
@@ -247,6 +249,45 @@ A `start_process.bat` file is joined to the source files of TraktForVLC. You nee
 edit it to reflect the data and configuration directory of your TraktForVLC
 installation, then you can add this program as a scheduled task that starts when you
 open your session.
+
+### On Mac OS X
+#### Using a ```.plist``` file
+Save the following file as ```org.TraktForVLC.plist``` in your ```~/Library/LaunchAgents/```
+folder (you can copy and edit the file from the ```macosx``` directory of this repository):
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+    "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>org.user.TraktForVLC</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>[EDIT: /usr/bin/python]</string>
+        <string>[EDIT: /path/to/TraktForVLC/TraktForVLC.py]</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>[EDIT: /path/to/TraktForVLC]</string>
+    <key>RunAtLoad</key>
+    <true />
+    <key>LaunchOnlyOnce</key>
+    <true />
+    <key>KeepAlive</key>
+    <true />
+</dict>
+</plist>
+```
+
+And edit the ```[EDIT: ...]``` blocks to reflect your installation.
+
+You can then load the file using the following command:
+```sh
+launchctl load ~/Library/LaunchAgents/org.TraktForVLC.plist
+```
+
+```TraktForVLC``` should be started as soon as you enter that last command,
+and will automatically be started for subsequent system boots.
 
 ## Issues
 Please use the [GitHub integrated issue tracker] [9] for every problem you can

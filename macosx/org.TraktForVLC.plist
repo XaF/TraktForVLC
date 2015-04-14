@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+    "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>org.user.TraktForVLC</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>[EDIT: /usr/bin/python]</string>
+        <string>[EDIT: /path/to/TraktForVLC/TraktForVLC.py]</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>[EDIT: /path/to/TraktForVLC]</string>
+    <key>RunAtLoad</key>
+    <true />
+    <key>LaunchOnlyOnce</key>
+    <true />
+    <key>KeepAlive</key>
+    <true />
+</dict>
+</plist>
