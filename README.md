@@ -191,13 +191,16 @@ to connect to your VLC instance.
 
 ```yaml
 [Trakt]
-Username = [username]       # Your trakt.tv username
-Password = [password]       # Your trakt.tv password
+PIN = [pin code]            # Identify yourself on the page https://trakt.tv/pin/2498
+			    # and put here the resulting pin code
 ```
 
-This is your personnal [trakt.tv] [1] credentials. You should be careful
-not to share them with anybody, but they're necessary here to connect to
-your account, update your current watching and scrobble when necessary.
+This is a [trakt.tv pin you can get from this web page] [pin]. After
+the first [trakt.tv] [1] connection, this ```PIN``` entry will be replaced
+automatically by two new entries: ```access_token``` and ```refresh_token```.
+Be careful not to remove those entries from your configuration, or you will
+need to put back a ```PIN``` entry with [a new freshly generated pin code from
+trakt.tv] [pin].
 
 ```yaml
 [TraktForVLC]
@@ -271,3 +274,5 @@ available in your ```logs/``` directory.
 [9]: https://github.com/XaF/TraktForVLC/issues
 [VLC]: https://videolan.org/
 [GPLv2]: https://www.gnu.org/licenses/gpl-2.0.html
+[pin]: https://trakt.tv/pin/2498
+
