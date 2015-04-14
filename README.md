@@ -34,7 +34,7 @@ TraktForVLC [![Travis Build Status](https://travis-ci.org/XaF/TraktForVLC.svg?br
 TraktForVLC allows scrobbling [VLC] content to [trakt.tv] [1].
 Since there is no way for VLC to directly know if you are watching
 a TV show or a Movie, this script will attempt to figure it out
-using the name of the video and its lenght. It is therefore possible
+using the name of the video and its length. It is therefore possible
 that the script can't find what you're watching if your files are
 not named properly.
 
@@ -43,7 +43,7 @@ not named properly.
 ### Credits
 
 The TraktForVLC script is originally based off of [TraktForBoxee] [2]
-and works very similarily to it.
+and works very similarly to it.
 
 This version of the script is forked from [Wifsimster's TraktForVLC] [3],
 itself based on the original [quietcore's TraktForVLC] [4].
@@ -194,7 +194,7 @@ to connect to your VLC instance.
 ```yaml
 [Trakt]
 PIN = [pin code]            # Identify yourself on the page https://trakt.tv/pin/2498
-			    # and put here the resulting pin code
+			                # and put here the resulting pin code
 ```
 
 This is a [trakt.tv pin you can get from this web page] [pin]. After
