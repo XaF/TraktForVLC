@@ -61,8 +61,8 @@ import tvdb_api
 from vlcrc import VLCRemote
 
 
-__release_name__ = "Arrow"
-__version_info__ = (1, 2, 0, '', 0)
+__release_name__ = "Breaking Bad"
+__version_info__ = (1, 3, 0, '-rc1', 0)
 __version__ = "%d.%d.%d%s" % __version_info__[:4]
 
 TIMER_INTERVAL = START_WATCHING_TIMER = 0
