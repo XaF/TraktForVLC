@@ -1,5 +1,4 @@
 version: '{branch}.{build}'
-skip_tags: true
 environment:
   matrix:
     - PYTHON: "2.6"
