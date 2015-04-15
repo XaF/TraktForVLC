@@ -20,6 +20,7 @@
 
 :::: Configuration to start TraktForVLC properly
 :: Set the full path to the python exe file on your computer
+:: (using pythonw.exe allows not to have a visible console)
 set python=C:\pythonw.exe
 
 :: Set the path to the TraktForVLC.py file on your computer
