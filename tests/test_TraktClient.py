@@ -79,46 +79,6 @@ def is_staging_available():
 
 
 class TraktClientTest(unittest.TestCase):
-    def __get_mock_client(self):
-        TraktClient.api_url = (
-            "https://private-anon-e4bdfe2c3-trakt.apiary-mock.com/")
-        tc = TraktClient.TraktClient({
-            'access_token':     'access_token',
-            'client_id':        'client_id',
-            'client_secret':    'client_secret',
-        })
-        return tc
-
-    def test_mock_startWatching(self):
-        tc = self.__get_mock_client()
-        ret = tc.startWatching('imdbID', 10, False)
-
-        self.assertTrue(u'action' in ret
-                        and ret[u'action'] == u'start')
-
-    def test_mock_pauseWatching(self):
-        tc = self.__get_mock_client()
-        ret = tc.pauseWatching('imdbID', 10, False)
-
-        self.assertTrue(u'action' in ret
-                        and ret[u'progress'] < 80
-                        and ret[u'action'] == u'pause')
-
-    def test_mock_stopWatching(self):
-        tc = self.__get_mock_client()
-        ret = tc.stopWatching('imdbID', 99.9, False)
-
-        self.assertTrue(u'action' in ret
-                        and ret[u'progress'] >= 80
-                        and ret[u'action'] == u'scrobble')
-
-    def test_mock_cancelWatching(self):
-        tc = self.__get_mock_client()
-        ret = tc.cancelWatching('imdbID', False)
-
-        self.assertTrue(u'action' in ret
-                        and ret[u'action'] == u'start')
-
     def __get_staging_client(self):
         TraktClient.api_url = "http://api.staging.trakt.tv/"
 
