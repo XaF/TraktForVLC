@@ -119,18 +119,18 @@ class TraktForVLC(object):
             releases,
             key=lambda x: x['tag_name'],
             reverse=True)[0]
+        if newest['tag_name'][:1] == "v":
+            newest['tag_name'] = newest['tag_name'][1:]
         newest_V = parse_version(newest['tag_name'])
-        if newest_V[0] == '*v':
-            newest_V = newest_V[1:]
 
         # We get the latest _stable_ release
         newest_stbl = sorted(
             [r for r in releases if not r['prerelease']],
             key=lambda x: x['tag_name'],
             reverse=True)[0]
+        if newest_stbl['tag_name'][:1] == "v":
+            newest_stbl['tag_name'] = newest_stbl['tag_name'][1:]
         newest_stbl_V = parse_version(newest_stbl['tag_name'])
-        if newest_stbl_V[0] == '*v':
-            newest_stbl_V = newest_stbl_V[1:]
 
         # We parse the current version
         current_V = parse_version(__version__)
