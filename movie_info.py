@@ -211,7 +211,7 @@ SPECIALCHARS = set([
 
 
 # The base url to do the imdb requests to
-BASE_URL = 'http://www.imdbapi.com/'
+BASE_URL = 'http://www.omdbapi.com/'
 
 # The list of information we want to extract from the requests results
 info_list = [
