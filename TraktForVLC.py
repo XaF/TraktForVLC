@@ -356,7 +356,7 @@ class TraktForVLC(object):
 
     def __save_config(self):
         saved = False
-        with open(self.configfile, 'wb') as configfile:
+        with open(self.configfile, 'w') as configfile:
             self.config.write(configfile)
             saved = True
         return saved
