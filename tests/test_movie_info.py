@@ -43,6 +43,8 @@ import movie_info
 
 
 class MovieInfoTest(unittest.TestCase):
+    maxDiff = None
+
     def _cleanMovieDict(self, moviedict):
         if 'tomatoRating' in moviedict:
             moviedict['tomatoRating'] = -1
