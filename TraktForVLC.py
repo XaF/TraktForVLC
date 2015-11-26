@@ -199,10 +199,11 @@ class TraktForVLC(object):
 
         self.log = logging.getLogger("TraktForVLC")
 
+        e = 'e' if (sys.platform == 'win32') else 'ë'
         self.log.info(
             "## TraktForVLC v" + __version__ + " " + __release_name__)
         self.log.info("## Copyright (C) 2014-2015  " +
-                      "Raphaël Beamonte <raphael.beamonte@gmail.com>")
+                      "Rapha" + e + "l Beamonte <raphael.beamonte@gmail.com>")
         self.log.info("##")
         self.log.info("## TraktForVLC is distributed in the hope that it " +
                       "will be useful, but")
