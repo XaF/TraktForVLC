@@ -735,7 +735,7 @@ def daemonize(pidfile=""):
             sys.exit("The pidfile " + pidfile + " already exists, " +
                      "TraktForVLC may still be running.")
         try:
-            file(pidfile, 'w').write("pid\n")
+            open(pidfile, 'w').write("pid\n")
         except IOError as e:
             sys.exit("Unable to write PID file: %s [%d]"
                      % (e.strerror, e.errno))
@@ -762,11 +762,11 @@ def daemonize(pidfile=""):
     except OSError as e:
         raise RuntimeError("2nd fork failed: %s [%d]" % (e.strerror, e.errno))
 
-    dev_null = file('/dev/null', 'r')
+    dev_null = open('/dev/null', 'r')
     os.dup2(dev_null.fileno(), sys.stdin.fileno())
 
     if (pidfile):
-        file(pidfile, "w").write("%s\n" % str(os.getpid()))
+        open(pidfile, "w").write("%s\n" % str(os.getpid()))
 
 if __name__ == '__main__':
     should_pair = should_daemon = False
@@ -867,7 +867,7 @@ if __name__ == '__main__':
     if should_daemon:
         daemonize(pidfile)
     elif (pidfile):
-        file(pidfile, "w").write("%s\n" % str(os.getpid()))
+        open(pidfile, "w").write("%s\n" % str(os.getpid()))
 
     if config == "":
         config = datadir
