@@ -112,7 +112,7 @@ class MovieInfoTest(unittest.TestCase):
                     u"the Dark Knight is forced to return from his imposed " +
                     u"exile to save Gotham City from the brutal guerrilla " +
                     u"terrorist Bane with the help of the enigmatic Selina.",
-            'Runtime': u'165 min',
+            'Runtime': u'164 min',
             'Title': u'The Dark Knight Rises',
             'Year': u'2012',
             'imdbID': u'tt1345836',
