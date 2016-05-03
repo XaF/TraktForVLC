@@ -53,6 +53,7 @@ install:
   # Install dependencies
   - "pip install nose"
   - if [%PYTHON%]==[2.6] pip install unittest2
+  - "pip install fuzzywuzzy"
 
 build: false
 
