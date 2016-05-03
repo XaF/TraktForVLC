@@ -92,6 +92,10 @@ class FilenameParserTest(unittest.TestCase):
                 "the.flash.2014.103.hdtv-lol.mp4",
                 {'episodes': [3], 'season': 1, 'show': 'the flash 2014'}
             ),
+            (
+                "Elementary S04E02.mkv",
+                {'episodes': [2], 'season': 4, 'show': 'Elementary'}
+            ),
         )
 
         for filename, expected in shows:
@@ -135,6 +139,10 @@ class FilenameParserTest(unittest.TestCase):
             (
                 "Silence of the Lambs-480.mp4",
                 {'title': 'Silence of the Lambs-480', 'year': None}
+            ),
+            (
+                "The.Man.from.U.N.C.L.E..2015.1080p.BluRay.x264.DTS-JYK.mkv",
+                {'title': 'The Man from U.N.C.L.E.', 'year': '2015'}
             ),
         )
 

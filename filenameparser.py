@@ -291,7 +291,7 @@ def cleanRegexedName(name):
     name = re.sub("[.](?!.(?:[.]|$))", " ", name)
     name = re.sub("(?<=[^. ]{2})[.]", " ", name)
     name = name.replace("_", " ")
-    name = name.strip("-. ")
+    name = name.strip("- ")
     return name
 
 
