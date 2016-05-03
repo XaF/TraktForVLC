@@ -21,6 +21,7 @@
 
 # Python lib imports
 import os
+from fuzzywuzzy import fuzz
 import sys
 import unittest
 
@@ -55,6 +56,13 @@ class MovieInfoTest(unittest.TestCase):
     def _movie_info_test(self, expected, searchTitle, searchYear=''):
         search = movie_info.get_movie_info(searchTitle, searchYear)
         search = self._cleanMovieDict(search)
+
+        if 'Plot' in search:
+            if 'Plot' in expected:
+                ratio = fuzz.partial_ratio(expected['Plot'], search['Plot'])
+                self.assertEqual(ratio > 90, True)
+                del expected['Plot']
+            del search['Plot']
 
         self.assertEqual(expected, search)
 
@@ -109,9 +117,10 @@ class MovieInfoTest(unittest.TestCase):
         expected = {
             'Director': u'Christopher Nolan',
             'Plot': u"Eight years after the Joker's reign of anarchy, " +
-                    u"the Dark Knight is forced to return from his imposed " +
-                    u"exile to save Gotham City from the brutal guerrilla " +
-                    u"terrorist Bane with the help of the enigmatic Selina.",
+                    u"the Dark Knight, with the help of the enigmatic " +
+                    u"Selina, is forced from his imposed exile to save " +
+                    u"Gotham City, now on the edge of total annihilation, " +
+                    u"from the brutal guerrilla terrorist Bane.",
             'Runtime': u'164 min',
             'Title': u'The Dark Knight Rises',
             'Year': u'2012',
