@@ -30,7 +30,6 @@ import os
 import struct
 
 import unicodedata
-import sys
 import imdbpie
 import math
 
@@ -219,7 +218,7 @@ def get_movie_info(movie_fname, movie_name,
                 key=lambda x:
                     abs(x['details'].runtime - movie_duration)
                     if movie_duration and x['details'].runtime is not None
-                    else sys.maxint
+                    else float('inf')
             )
         else:
             movie_info = {}
