@@ -51,6 +51,9 @@ staging = {
 
 
 def is_staging_available():
+    # Temporary disable the staging tests
+    return False
+
     if staging['available'] is not None:
         return staging['available']
 
