@@ -17,6 +17,6 @@ install:
   - if [[ $TRAVIS_PYTHON_VERSION == 2.6 ]]; then pip install --use-mirrors unittest2; fi
   - pip install fuzzywuzzy
   - pip install python-levenshtein
-  - pip install CacheControl
+  - pip install CacheControl six
 
 script: nosetests -vv -w tests/

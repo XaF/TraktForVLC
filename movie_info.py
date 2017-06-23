@@ -83,10 +83,10 @@ def get_movie_info(movie_fname, movie_name,
     LOG = logging.getLogger(__name__)
 
     # Initialize the connection to opensubtitles
-    useragent = 'TraktForVLC v{}'.format(__version__)
+    useragent = 'TraktForVLC v{0}'.format(__version__)
     proxy = xmlrpc.ServerProxy("http://api.opensubtitles.org/xml-rpc")
     login = proxy.LogIn('', '', 'en', useragent)
-    LOG.debug('OpenSubtitles UserAgent: {}'.format(useragent))
+    LOG.debug('OpenSubtitles UserAgent: {0}'.format(useragent))
     imdb = imdbpie.Imdb(
         # For this version of TraktForVLC, we only want to return movies,
         # not episodes
@@ -100,8 +100,8 @@ def get_movie_info(movie_fname, movie_name,
 
     LOG.debug(
         (
-            'received parameters: {{movie_fname => {}, movie_name => {}, '
-            'movie_year => {}, movie_duration => {}}}'
+            'received parameters: {{movie_fname => {0}, movie_name => {1}, '
+            'movie_year => {2}, movie_duration => {3}}}'
         ).format(
             movie_fname,
             movie_name,
@@ -117,7 +117,7 @@ def get_movie_info(movie_fname, movie_name,
     if movie_fname and os.path.isfile(movie_fname):
         # Compute the hash for the file
         movie_hash = hashFile(movie_fname)
-        LOG.debug('Computed movie hash: {}'.format(movie_hash))
+        LOG.debug('Computed movie hash: {0}'.format(movie_hash))
 
         # Search for the files corresponding to this hash
         movies = proxy.CheckMovieHash2(login['token'], [movie_hash, ])
@@ -137,7 +137,7 @@ def get_movie_info(movie_fname, movie_name,
                 else movies[movie_hash][0]
             )
             movie_info['details'] = imdb.get_title_by_id(
-                'tt{}'.format(movie_info['MovieImdbID']))
+                'tt{0}'.format(movie_info['MovieImdbID']))
             movie_found_by_hash = True
 
     if movie_info is None:
@@ -146,7 +146,7 @@ def get_movie_info(movie_fname, movie_name,
         if not search:
             raise RuntimeError('Movie not found! 1')
 
-        LOG.debug('Found {} results using IMDB'.format(len(search)))
+        LOG.debug('Found {0} results using IMDB'.format(len(search)))
         LOG.debug(search)
 
         # Compute the proximity ratio of the title and search if the actual
@@ -164,7 +164,7 @@ def get_movie_info(movie_fname, movie_name,
         if year_found:
             search = [r for r in search if r['year'] == movie_year]
 
-        LOG.debug('{} results left after first filters'.format(
+        LOG.debug('{0} results left after first filters'.format(
             len(search)))
         LOG.debug(search)
 
@@ -185,8 +185,8 @@ def get_movie_info(movie_fname, movie_name,
 
             LOG.debug(
                 (
-                    'Computed ratio: {{mean => {}, stdev => {}, '
-                    'threshold => {}}}'
+                    'Computed ratio: {{mean => {0}, stdev => {1}, '
+                    'threshold => {2}}}'
                 ).format(
                     mean_ratio,
                     std_dev_ratio,
@@ -202,7 +202,7 @@ def get_movie_info(movie_fname, movie_name,
             if len(search) > 1:
                 search = [search[0], ]
 
-        LOG.debug('{} results left after second filters'.format(
+        LOG.debug('{0} results left after second filters'.format(
             len(search)))
         LOG.debug(search)
 
@@ -252,7 +252,7 @@ def get_movie_info(movie_fname, movie_name,
             ]
         )
         if res['status'] != '200 OK':
-            logging.warn('Unable to submit hash for movie \'{}\': {}'.format(
+            logging.warn('Unable to submit hash for movie \'{0}\': {1}'.format(
                 details.title, res['status']))
 
     dict_info = {
