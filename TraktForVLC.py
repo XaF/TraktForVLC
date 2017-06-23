@@ -362,9 +362,10 @@ class TraktForVLC(object):
             saved = True
         return saved
 
-    def resetCache(self, filename=None, filelength=None):
+    def resetCache(self, filepath=None, filename=None, filelength=None):
         self.log.debug("reset cache (%s, %s)" % (filename, filelength))
         self.cache = {
+            "vlc_file_path": filepath,
             "vlc_file_name": filename,
             "vlc_file_length": filelength,
             "scrobbled": False,
@@ -443,8 +444,10 @@ class TraktForVLC(object):
             vlc.close()
             return
 
+        currentFilePath = vlc.get_filename()
+
         if self.USE_FILENAME:
-            currentFileName = vlc.get_filename()
+            currentFileName = currentFilePath
         else:
             currentFileName = vlc.get_title()
         self.vlcTime = int(vlc.get_time())
@@ -482,7 +485,8 @@ class TraktForVLC(object):
                     self.cache["video"]["imdbid"],
                     self.get_episode(self.cache["video"]))
 
-            self.resetCache(currentFileName, currentFileLength)
+            self.resetCache(currentFilePath, currentFileName,
+                            currentFileLength)
             self.cache['started_watching'] = (time.time(), self.vlcTime)
 
             video = self.get_TV(vlc)
@@ -654,7 +658,8 @@ class TraktForVLC(object):
 
                 self.log.debug("get_Movie::Now playing: %s" % str(now_playing))
 
-                if self.valid_Movie(title, year, duration):
+                if self.valid_Movie(self.cache['vlc_file_path'], title,
+                                    year, duration):
                     movie = self.cache["movie_info"]
                     self.log.debug("get_Movie::Valid movie found: %s"
                                    % str(movie))
@@ -678,23 +683,13 @@ class TraktForVLC(object):
                            exc_info=sys.exc_info())
             return
 
-    def valid_Movie(self, vlcTitle, vlcYear, vlcDuration):
+    def valid_Movie(self, vlcFilePath, vlcTitle, vlcYear, vlcDuration):
         try:
             # Get Movie info
-            movie = movie_info.get_movie_info(vlcTitle, vlcYear)
+            movie = movie_info.get_movie_info(
+                vlcFilePath, vlcTitle, vlcYear, vlcDuration)
             # Compare Movie runtime against VLC runtime
-            regex = re.compile('^((?P<hour>[0-9]{1,2}).*?h)' +
-                               '?.*?(?P<min>[0-9]+).*?min?',
-                               re.IGNORECASE | re.MULTILINE)
-            r = regex.search(movie['Runtime'])
-            try:
-                timeh = 0 if r.group('hour') is None else int(r.group('hour'))
-                timem = 0 if r.group('min') is None else int(r.group('min'))
-                time = timeh * 60 * 60 + timem * 60
-            except:
-                self.log.debug("valid_Movie::unable to compute the duration",
-                               exc_info=sys.exc_info())
-                return False
+            time = movie['Runtime']
             # Verify that the VLC duration is within 5 minutes of the
             # official duration
             if (vlcDuration >= time - 300) and (vlcDuration <= time + 300):

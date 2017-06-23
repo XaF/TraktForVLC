@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 #
-# Copyright (C) 2014-2015   Raphaël Beamonte <raphael.beamonte@gmail.com>
+# Copyright (C) 2014-2017   Raphaël Beamonte <raphael.beamonte@gmail.com>
 #
 # This file is part of TraktForVLC.  TraktForVLC is free software: you can
 # redistribute it and/or modify it under the terms of the GNU General Public
@@ -17,401 +17,252 @@
 # Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 # or see <http://www.gnu.org/licenses/>.
 
+try:
+    # Python 3
+    import xmlrpc.client as xmlrpc
+except ImportError:
+    # Python 2
+    import xmlrpclib as xmlrpc
 
+import fuzzywuzzy.fuzz
 import logging
-import re
-import requests
-import difflib
+import os
+import struct
 
-# English stopwords
-STOPWORDS_EN = set([
-    'a',
-    'about',
-    'above',
-    'after',
-    'again',
-    'against',
-    'all',
-    'am',
-    'an',
-    'and',
-    'any',
-    'are',
-    'aren\'t',
-    'as',
-    'at',
-    'be',
-    'because',
-    'been',
-    'before',
-    'being',
-    'below',
-    'between',
-    'both',
-    'but',
-    'by',
-    'can\'t',
-    'cannot',
-    'could',
-    'couldn\'t',
-    'did',
-    'didn\'t',
-    'do',
-    'does',
-    'doesn\'t',
-    'doing',
-    'don\'t',
-    'down',
-    'during',
-    'each',
-    'few',
-    'for',
-    'from',
-    'further',
-    'had',
-    'hadn\'t',
-    'has',
-    'hasn\'t',
-    'have',
-    'haven\'t',
-    'having',
-    'he',
-    'he\'d',
-    'he\'ll',
-    'he\'s',
-    'her',
-    'here',
-    'here\'s',
-    'hers',
-    'herself',
-    'him',
-    'himself',
-    'his',
-    'how',
-    'how\'s',
-    'i',
-    'i\'d',
-    'i\'ll',
-    'i\'m',
-    'i\'ve',
-    'if',
-    'in',
-    'into',
-    'is',
-    'isn\'t',
-    'it',
-    'it\'s',
-    'its',
-    'itself',
-    'let\'s',
-    'me',
-    'more',
-    'most',
-    'mustn\'t',
-    'my',
-    'myself',
-    'no',
-    'nor',
-    'not',
-    'of',
-    'off',
-    'on',
-    'once',
-    'only',
-    'or',
-    'other',
-    'ought',
-    'our',
-    'ours',
-    'ourselves',
-    'out',
-    'over',
-    'own',
-    'same',
-    'shan\'t',
-    'she',
-    'she\'d',
-    'she\'ll',
-    'she\'s',
-    'should',
-    'shouldn\'t',
-    'so',
-    'some',
-    'such',
-    'than',
-    'that',
-    'that\'s',
-    'the',
-    'their',
-    'theirs',
-    'them',
-    'themselves',
-    'then',
-    'there',
-    'there\'s',
-    'these',
-    'they',
-    'they\'d',
-    'they\'ll',
-    'they\'re',
-    'they\'ve',
-    'this',
-    'those',
-    'through',
-    'to',
-    'too',
-    'under',
-    'until',
-    'up',
-    'very',
-    'was',
-    'wasn\'t',
-    'we',
-    'we\'d',
-    'we\'ll',
-    'we\'re',
-    'we\'ve',
-    'were',
-    'weren\'t',
-    'what',
-    'what\'s',
-    'when',
-    'when\'s',
-    'where',
-    'where\'s',
-    'which',
-    'while',
-    'who',
-    'who\'s',
-    'whom',
-    'why',
-    'why\'s',
-    'with',
-    'won\'t',
-    'would',
-    'wouldn\'t',
-    'you',
-    'you\'d',
-    'you\'ll',
-    'you\'re',
-    'you\'ve',
-    'your',
-    'yours',
-    'yourself',
-    'yourselves',
-])
+import unicodedata
+import sys
+import imdbpie
+import math
 
-# Special chars commonly found in movie titles
-SPECIALCHARS = set([
-    '&',
-    ':',
-    ',',
-    '-',
-])
+from TraktForVLC import __version__
 
 
-# The base url to do the imdb requests to
-BASE_URL = 'http://www.omdbapi.com/'
-
-# The list of information we want to extract from the requests results
-info_list = [
-    'Plot',
-    'Title',
-    'Director',
-    'tomatoRating',
-    'imdbID',
-    'imdbRating',
-    'Runtime',
-    'Year'
-]
+def remove_accents(input_str):
+    nfkd_form = unicodedata.normalize('NFKD', input_str)
+    only_ascii = nfkd_form.encode('ASCII', 'ignore')
+    return only_ascii
 
 
-def get_movie_info(movi_name, movi_year=''):
+# Taken from http://trac.opensubtitles.org/projects/opensubtitles/wiki/, page
+# HashSourceCodes#Python
+def hashFile(name):
+    try:
+        longlongformat = '<q'  # little-endian long long
+        bytesize = struct.calcsize(longlongformat)
+
+        with open(name, "rb") as f:
+            filesize = os.path.getsize(name)
+            hash = filesize
+
+            if filesize < 65536 * 2:
+                return "SizeError"
+
+            for x in range(65536 / bytesize):
+                buffer = f.read(bytesize)
+                (l_value,) = struct.unpack(longlongformat, buffer)
+                hash += l_value
+                hash = hash & 0xFFFFFFFFFFFFFFFF  # to remain as 64bit number
+
+            f.seek(max(0, filesize - 65536), 0)
+            for x in range(65536 / bytesize):
+                buffer = f.read(bytesize)
+                (l_value,) = struct.unpack(longlongformat, buffer)
+                hash += l_value
+                hash = hash & 0xFFFFFFFFFFFFFFFF
+
+        returnedhash = "%016x" % hash
+        return returnedhash
+
+    except(IOError):
+        return "IOError"
+
+
+def get_movie_info(movie_fname, movie_name,
+                   movie_year='', movie_duration=None):
     # Load logger
     LOG = logging.getLogger(__name__)
 
-    # Formatting query to send
-    query = {
-        'i': '',
-        't': movi_name,
-        'y': movi_year,
-        'tomatoes': 'true'
+    # Initialize the connection to opensubtitles
+    useragent = 'TraktForVLC v{}'.format(__version__)
+    proxy = xmlrpc.ServerProxy("http://api.opensubtitles.org/xml-rpc")
+    login = proxy.LogIn('', '', 'en', useragent)
+    LOG.debug('OpenSubtitles UserAgent: {}'.format(useragent))
+    imdb = imdbpie.Imdb(
+        # For this version of TraktForVLC, we only want to return movies,
+        # not episodes
+        exclude_episodes=True,
+    )
+
+    try:
+        movie_name = remove_accents(movie_name)
+    except TypeError:
+        pass
+
+    LOG.debug(
+        (
+            'received parameters: {{movie_fname => {}, movie_name => {}, '
+            'movie_year => {}, movie_duration => {}}}'
+        ).format(
+            movie_fname,
+            movie_name,
+            movie_year,
+            movie_duration,
+        )
+    )
+
+    movie_info = None
+    movie_hash = None
+    movie_found_by_hash = False
+
+    if movie_fname and os.path.isfile(movie_fname):
+        # Compute the hash for the file
+        movie_hash = hashFile(movie_fname)
+        LOG.debug('Computed movie hash: {}'.format(movie_hash))
+
+        # Search for the files corresponding to this hash
+        movies = proxy.CheckMovieHash2(login['token'], [movie_hash, ])
+        movies = movies['data'] if 'data' in movies else []
+
+        if movie_hash in movies:
+            LOG.debug('We found movies using the hash')
+
+            # Use fuzzywuzzy to get the closest file name
+            movie_info = (
+                max(
+                    movies[movie_hash],
+                    key=lambda x:
+                        fuzzywuzzy.fuzz.ratio(movie_name, x)
+                )
+                if len(movies[movie_hash]) > 1
+                else movies[movie_hash][0]
+            )
+            movie_info['details'] = imdb.get_title_by_id(
+                'tt{}'.format(movie_info['MovieImdbID']))
+            movie_found_by_hash = True
+
+    if movie_info is None:
+        # Use imdb to search for the movie
+        search = imdb.search_for_title(movie_name)
+        if not search:
+            raise RuntimeError('Movie not found! 1')
+
+        LOG.debug('Found {} results using IMDB'.format(len(search)))
+        LOG.debug(search)
+
+        # Compute the proximity ratio of the title and search if the actual
+        # year exists if it was provided
+        year_found = False
+        for r in search:
+            r['fuzz_ratio'] = fuzzywuzzy.fuzz.ratio(movie_name, r['title'])
+            if movie_year and \
+                    not year_found and \
+                    r['year'] == movie_year and \
+                    r['fuzz_ratio'] >= 50.:
+                year_found = True
+
+        # If the actual year exists, clean it
+        if year_found:
+            search = [r for r in search if r['year'] == movie_year]
+
+        LOG.debug('{} results left after first filters'.format(
+            len(search)))
+        LOG.debug(search)
+
+        if movie_duration:
+            # If we have the movie duration, we can use it to make the
+            # research more precise
+            sum_ratio = sum(r['fuzz_ratio'] for r in search)
+            mean_ratio = sum_ratio / float(len(search))
+            std_dev_ratio = math.sqrt(
+                sum([
+                    math.pow(r['fuzz_ratio'] - mean_ratio, 2)
+                    for r in search
+                ]) / float(len(search))
+            )
+
+            # Select only the titles over a given threshold
+            threshold = max(50., mean_ratio + (std_dev_ratio / 2.))
+
+            LOG.debug(
+                (
+                    'Computed ratio: {{mean => {}, stdev => {}, '
+                    'threshold => {}}}'
+                ).format(
+                    mean_ratio,
+                    std_dev_ratio,
+                    threshold,
+                )
+            )
+
+            search = [r for r in search if r['fuzz_ratio'] > threshold]
+        else:
+            # If we don't have the movie duration, just use the highest ratio
+            max_ratio = max(50., max(r['fuzz_ratio'] for r in search))
+            search = [r for r in search if r['fuzz_ratio'] == max_ratio]
+            if len(search) > 1:
+                search = [search[0], ]
+
+        LOG.debug('{} results left after second filters'.format(
+            len(search)))
+        LOG.debug(search)
+
+        if search:
+            # Now we need to get more information to identify precisely
+            # the movie
+            for r in search:
+                r['details'] = imdb.get_title_by_id(r['imdb_id'])
+
+            # Try to get the closest movie using the movie duration
+            # if available
+            movie_info = min(
+                search,
+                key=lambda x:
+                    abs(x['details'].runtime - movie_duration)
+                    if movie_duration and x['details'].runtime is not None
+                    else sys.maxint
+            )
+        else:
+            movie_info = {}
+
+    # We want to use only the details from now on
+    details = movie_info.get('details')
+
+    if details is None:
+        raise LookupError("unable to find the movie '%s'" % (movie_name))
+
+    if movie_hash and \
+            not movie_found_by_hash and \
+            movie_info.get('fuzz_ratio', 0.) > 60.:
+        LOG.debug('Sending movie hash information to opensubtitles')
+        # Insert the movie hash if possible!
+        res = proxy.InsertMovieHash(
+            login['token'],
+            [
+                {
+                    'moviehash': movie_hash,
+                    'moviebytesize': os.path.getsize(movie_fname),
+                    'imdbid': details.imdb_id[2:],
+                    'movietimems': (
+                        movie_duration
+                        if movie_duration
+                        else details.runtime
+                    ),
+                    'moviefilename': os.path.basename(movie_fname),
+                },
+            ]
+        )
+        if res['status'] != '200 OK':
+            logging.warn('Unable to submit hash for movie \'{}\': {}'.format(
+                details.title, res['status']))
+
+    dict_info = {
+        'Director': details.directors_summary[0].name,
+        'Plot': details.plot_outline,
+        'Runtime': details.runtime,
+        'Title': details.title,
+        'Year': details.year,
+        'imdbID': details.imdb_id,
+        'imdbRating': details.rating,
     }
 
-    # Searching for the movie directly
-    response = requests.get(BASE_URL, params=query)
-
-    # Parsing json
-    output = response.json()
-
-    # If we don't have a direct match, or if our direct match isn't a movie
-    if (('Response' in output.keys() and output['Response'] == 'False')
-            or output['Type'] != 'movie'):
-        # We set a variable to indicate we haven't found the movie yet
-        found = False
-
-        # We didn't find the movie directly, try to 'search' it
-        querySearch = {
-            'i': '',
-            's': movi_name,
-            'y': movi_year
-        }
-
-        tries = 0
-        while tries < 2:
-            tries += 1
-
-            # Sending the research
-            responseSearch = requests.get(BASE_URL, params=querySearch)
-
-            # Parsing json
-            results = responseSearch.json()
-
-            # If we have results
-            if 'Search' in results.keys():
-                # We need first to filter the results to keep only the movies
-                filtered = [i for i in results['Search']
-                            if i['Type'] == 'movie']
-
-                # If we have at least a movie in the list
-                if filtered:
-                    # We sort it by similarity with the request
-                    bests = sorted(
-                        filtered,
-                        key=lambda x: difflib.SequenceMatcher(
-                            None,
-                            x['Title'],
-                            movi_name).ratio(),
-                        reverse=True
-                    )
-
-                    # We select the most similar
-                    selected = bests[0]
-
-                    # And we now check the similarity following three
-                    # steps...
-                    # 1/ if the movie title is at least 90% similar to
-                    #    our request, we consider that we found it
-                    diff_movi_name = difflib.SequenceMatcher(
-                        None,
-                        selected['Title'].lower(),
-                        movi_name.lower()).ratio()
-
-                    LOG.debug("DIFF_1 '%s' vs '%s' = %f" % (
-                        selected['Title'].lower(),
-                        movi_name.lower(),
-                        diff_movi_name))
-
-                    similarEnough = False
-                    if diff_movi_name >= 0.9:
-                        similarEnough = True
-
-                    # 2/ Else, if the search string is different from
-                    #    our original request because it has been cleaned
-                    #    we check that the movie title is at least 90%
-                    #    similar to the search string and 80% similar
-                    #    to the original request
-                    if (not similarEnough
-                            and diff_movi_name >= 0.8):
-                        if movi_name != querySearch['s']:
-                            diff_querySearch = difflib.SequenceMatcher(
-                                None,
-                                selected['Title'].lower(),
-                                querySearch['s'].lower()).ratio()
-
-                            LOG.debug("DIFF_2 '%s' vs '%s' = %f" % (
-                                selected['Title'].lower(),
-                                querySearch['s'].lower(),
-                                diff_querySearch))
-
-                            if diff_querySearch >= 0.9:
-                                similarEnough = True
-                        else:
-                            diff_querySearch = diff_movi_name
-
-                    # 3/ Finally, if we still haven't considered the
-                    #    movie we found as the one we searched for, we
-                    #    will clean its title using our common words list
-                    #    and special chars, and check if the cleaned
-                    #    movie title is at least 90% similar to our
-                    #    search string and the movie title at least
-                    #    80% similar to our search string and 70%
-                    #    similar to our original request.
-                    if (not similarEnough
-                            and diff_querySearch >= 0.8
-                            and diff_movi_name >= 0.7):
-                        ctitle = selected['Title']
-                        ctitle = ' '.join(word for word in ctitle.split()
-                                          if word.lower() not in STOPWORDS_EN)
-                        ctitle = ' '.join(word for word in ctitle.split()
-                                          if word.lower() not in SPECIALCHARS)
-
-                        diff_ctitle = difflib.SequenceMatcher(
-                            None,
-                            ctitle.lower(),
-                            querySearch['s'].lower()).ratio()
-
-                        LOG.debug("DIFF_3 '%s' vs '%s' = %f" % (
-                            ctitle.lower(),
-                            querySearch['s'].lower(),
-                            diff_ctitle))
-
-                        if diff_ctitle >= 0.9:
-                            similarEnough = True
-
-                    if similarEnough:
-                        found = True
-
-                        # We make a new request using the imdbID of the found
-                        # movie to load all of the information we wanted
-                        query = {
-                            'i': selected['imdbID'],
-                            'tomatoes': 'true'
-                        }
-
-                        response = requests.get(BASE_URL, params=query)
-
-                        # And we parse the new json
-                        output = response.json()
-
-            # If we found the movie, or if we already tried to remove
-            # the common words and special chars, we just stop now
-            if found or tries == 2:
-                break
-
-            # Last try: we remove common words and chars from the title
-            search = movi_name
-            search = ' '.join(word for word in search.split()
-                              if word.lower() not in STOPWORDS_EN)
-            search = ' '.join(word for word in search.split()
-                              if word.lower() not in SPECIALCHARS)
-
-            # We verify that the new string is different from the previous
-            if search == movi_name:
-                # It's the same...
-                break
-
-            # We verify that we still have words...
-            search = search.split()
-            if len(search) < 2 and len(search[0]) < 5:
-                # We have only one word of less than 5 characters...
-                break
-
-            # We change the search string to use our new string
-            # and profit that we splitted the string to only keep
-            # one space between each word
-            querySearch['s'] = ' '.join(search)
-
-        # If we didn't find the movie, we raise an error
-        if not found:
-            raise LookupError("unable to find the movie '%s'" % (movi_name))
-
-    # If we have found the movie, we organize its data to return it
-    movie_info = {}
-    for info in info_list:
-        if info in output.keys():
-            movie_info[info] = output[info]
-        else:
-            movie_info[info] = None
-
-    return movie_info
+    return dict_info
