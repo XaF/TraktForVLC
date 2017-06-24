@@ -457,13 +457,13 @@ class TraktForVLC(object):
         if parsed.netloc:
             # Set the filename using only the basename of the parsed path
             currentFileName = os.path.basename(parsed.path)
-
-            # And use urllib's unquote to bring back special chars
-            currentFileName = unquote(currentFileName)
         elif self.USE_FILENAME:
             # Even if it's not from a stream, if it's a filename we're using
             # we need to keep only the basename of the parsed path
             currentFileName = os.path.basename(currentFileName)
+
+        # Use urllib's unquote to bring back special chars
+        currentFileName = unquote(currentFileName)
 
         if (currentFileName == self.cache["vlc_file_name"]
                 and currentFileLength == self.cache['vlc_file_length']):
@@ -475,7 +475,7 @@ class TraktForVLC(object):
             else:
                 video = self.get_Movie(vlc, self.cache["movie_info"])
         else:
-            self.log.debug("main::New file: %s (%s)"
+            self.log.debug("main::New file: %s (length: %s)"
                            % (currentFileName, currentFileLength))
 
             # If we were watching a video but we didn't finish it, we
