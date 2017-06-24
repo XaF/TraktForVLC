@@ -35,11 +35,6 @@ sys.path.append(
     )
 )
 
-# Add tvdb_api directory to path
-sys.path.append(os.path.abspath(
-    os.path.join(*__file__.split('/')[:-1] + ['tvdb_api'])
-))
-
 # Local imports
 import movie_info
 

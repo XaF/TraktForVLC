@@ -21,14 +21,10 @@
 # Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 # or see <http://www.gnu.org/licenses/>.
 
-# import sys first to check Python version
-import sys
-IS_PY2 = (sys.version_info[0] == 2)
-
 # Python lib import
-if IS_PY2:
+try:
     from ConfigParser import RawConfigParser
-else:
+except ImportError:
     from configparser import RawConfigParser
 from copy import deepcopy
 import datetime
@@ -37,15 +33,15 @@ import logging
 import os
 from pkg_resources import parse_version
 import platform
-import re
 import requests
 import signal
+import sys
 import time
-import traceback
-if IS_PY2:
+import tvdb_api
+try:
     from urllib import unquote
     from urlparse import urlparse
-else:
+except ImportError:
     from urllib.parse import unquote
     from urllib.parse import urlparse
 
@@ -53,11 +49,6 @@ else:
 from filenameparser import parse_tv, parse_movie
 import movie_info
 import TraktClient
-if not IS_PY2:
-    sys.path.append(os.path.abspath(
-        os.path.join(*__file__.split('/')[:-1] + ['tvdb_api'])
-    ))
-import tvdb_api
 from vlcrc import VLCRemote
 
 
@@ -85,6 +76,10 @@ LOG_LEVEL = logging.WARNING
 
 # Use small timers, useful in debug mode
 SMALL_TIMERS = False
+
+
+def get_file():
+    return sys.executable if getattr(sys, 'frozen', False) else __file__
 
 
 class TraktForVLC(object):
@@ -282,7 +277,7 @@ class TraktForVLC(object):
         # Initialize Trakt client
         modifiedTime = time.strftime(
             '%Y-%m-%d',
-            time.gmtime(os.path.getmtime(__file__)))
+            time.gmtime(os.path.getmtime(get_file())))
         self.trakt_client = TraktClient.TraktClient({
             'username':         trakt['Username'],
             'password':         trakt['Password'],
@@ -767,7 +762,7 @@ def daemonize(pidfile=""):
 if __name__ == '__main__':
     should_pair = should_daemon = False
     pidfile = ""
-    datadir = os.path.dirname(__file__)
+    datadir = os.path.dirname(get_file())
     logfile = ""
     config = ""
 

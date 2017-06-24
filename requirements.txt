@@ -1,0 +1,6 @@
+requests
+requests-cache
+imdbpie
+tvdb_api
+fuzzywuzzy
+python-levenshtein

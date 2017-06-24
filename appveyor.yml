@@ -1,17 +1,21 @@
 version: '{branch}.{build}'
 environment:
   matrix:
-    - PYTHON: "2.6"
-      PYTHON_INSTALL: "2.6.6"
-
     - PYTHON: "2.7"
-      PYTHON_INSTALL: "2.7.9"
+      PYTHON_INSTALL: "2.7.13"
+      should_deploy: yes
 
     - PYTHON: "3.3"
       PYTHON_INSTALL: "3.3.5"
 
     - PYTHON: "3.4"
       PYTHON_INSTALL: "3.4.3"
+
+    - PYTHON: "3.5"
+      PYTHON_INSTALL: "3.5.3"
+
+    - PYTHON: "3.6"
+      PYTHON_INSTALL: "3.6.1"
 
 platform:
   - x86
@@ -53,11 +57,59 @@ install:
   # Install dependencies
   - "pip install nose"
   - if [%PYTHON%]==[2.6] pip install unittest2
-  - "pip install fuzzywuzzy"
-  - "pip install python-levenshtein"
-  - "pip install CacheControl six"
+  - "pip install pyinstaller"
+  - "pip install -r requirements.txt"
 
-build: false
+build_script:
+  # Generate exe file
+  - "pyinstaller --onefile TraktForVLC.py"
 
-test_script:
-  - "nosetests -vv -w tests/"
+  # Test the exe file by first looking if the --help command returns properly
+  - "%APPVEYOR_BUILD_FOLDER%\\dist\\TraktForVLC.exe --help"
+
+  # Then prepare for a full execution and check for the return code and output
+  - "MKDIR %APPVEYOR_BUILD_FOLDER%\\APPVEYOR_BUILD"
+  - "COPY %APPVEYOR_BUILD_FOLDER%\\config.ini.default %APPVEYOR_BUILD_FOLDER%\\APPVEYOR_BUILD\\config.ini"
+  - ps: $TestPid = Start-Process $env:APPVEYOR_BUILD_FOLDER\dist\TraktForVLC.exe -ArgumentList "--debug", "--datadir $env:APPVEYOR_BUILD_FOLDER\APPVEYOR_BUILD", "--pidfile $env:APPVEYOR_BUILD_FOLDER\APPVEYOR_BUILD\build.pid" -RedirectStandardOutput $env:APPVEYOR_BUILD_FOLDER\APPVEYOR_BUILD\out.log -RedirectStandardError $env:APPVEYOR_BUILD_FOLDER\APPVEYOR_BUILD\err.log -PassThru
+  - ps: $timeouted = $null; $TestPid | Wait-Process -Timeout 10 -ea 0 -ev timeouted; if ($timeouted) { TASKKILL /PID $TestPid.Id /F /T; } else { echo "Exit code was $TestPid.ExitCode"; }
+  - ps: $path = "$env:APPVEYOR_BUILD_FOLDER\APPVEYOR_BUILD\out.log"; if (Test-Path $path -PathType Leaf) { Get-Content $path; } else { echo "File $path does not exist"; }
+  - ps: $path = "$env:APPVEYOR_BUILD_FOLDER\APPVEYOR_BUILD\err.log"; if (Test-Path $path -PathType Leaf) { Get-Content $path; } else { echo "File $path does not exist"; }
+  - ps: $path = "$env:APPVEYOR_BUILD_FOLDER\APPVEYOR_BUILD\logs\TraktForVLC-DEBUG.log"; if (Test-Path $path -PathType Leaf) { Get-Content $path; } else { echo "File $path does not exist"; }
+  - ps: if (!$timeouted) { exit(1); }
+
+after_build:
+  # Put all the files that we want to export in a zip file
+  - "7z a -tzip %APPVEYOR_PROJECT_NAME%-%APPVEYOR_REPO_BRANCH%-%PLATFORM%.zip %APPVEYOR_BUILD_FOLDER%\\dist\\* %APPVEYOR_BUILD_FOLDER%\\config.ini.default"
+
+  # List the content of that zip file so we'll see in the log what's in there
+  - "7z l %APPVEYOR_PROJECT_NAME%-%APPVEYOR_REPO_BRANCH%-%PLATFORM%.zip"
+
+artifacts:
+  - path: $(APPVEYOR_PROJECT_NAME)-$(APPVEYOR_REPO_BRANCH)-$(PLATFORM).zip
+    name: $(APPVEYOR_PROJECT_NAME)-$(APPVEYOR_REPO_BRANCH)-$(PLATFORM)
+
+before_deploy:
+  - ps: if ($env:APPVEYOR_REPO_TAG -eq "true") { $env:RELEASE_NAME = $env:APPVEYOR_REPO_TAG_NAME; $env:RELEASE_DRAFT = $false; $env:RELEASE_PRE = $env:APPVEYOR_REPO_TAG_NAME -match "-a" -or $env:APPVEYOR_REPO_TAG_NAME -match "-b" -or $env:APPVEYOR_REPO_TAG_NAME -match "-rc"; if ($env:RELEASE_PRE) { $RC = $env:RELEASE_NAME -replace '^.*-(rc|a|b)',''; $RF = $env:RELEASE_NAME -replace '-(rc|a|b).*$',''; $env:RELEASE_DESCRIPTION = "This is the release candidate $RC.\nNew features will not be added to the $RF release, only bugfixes"; } else { $env:RELEASE_DESCRIPTION = "$env:RELEASE_NAME release"; } } else { $env:RELEASE_NAME = "$env:APPVEYOR_REPO_BRANCH-branch"; $env:RELEASE_PRE = $false; $env:RELEASE_DRAFT = $true; $env:RELEASE_DESCRIPTION = "Draft of release for branch $env:APPVEYOR_REPO_BRANCH"; }
+  - ps: 'echo "RELEASE NAME: $env:RELEASE_NAME"'
+  - ps: 'echo "RELEASE DESCRIPTION: $env:RELEASE_DESCRIPTION"'
+  - ps: 'echo "IS PRE RELEASE ? $env:RELEASE_PRE"'
+  - ps: 'echo "IS RELEASE DRAFT ? $env:RELEASE_DRAFT"'
+
+deploy:
+  - release: $(RELEASE_NAME)
+    description: $(RELEASE_DESCRIPTION)
+    provider: GitHub
+    auth_token:
+      secure: p4SqkPeYal/Zfew4DoeZjV716Y2SlUqTpEtFCGhUkFjImW1zEuBzQ2XchsWHZLjS # your encrypted token from GitHub
+    artifact: $(APPVEYOR_PROJECT_NAME)-$(APPVEYOR_REPO_BRANCH)-$(PLATFORM)
+    draft: $(RELEASE_DRAFT)
+    prerelease: $(RELEASE_PRE)
+    on:
+      should_deploy: yes
+      appveyor_repo_tag: true        # deploy on tag push only
+
+# Disable the tests for now, we need to fix the number of requests to imdbpie
+# and the retry process before reenabling the tests
+# test_script:
+#   - "nosetests -vv -w tests/"
+test: off
