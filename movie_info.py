@@ -193,17 +193,18 @@ def get_movie_info(movie_fname, movie_name,
                 )
             )
 
-            search = [r for r in search if r['fuzz_ratio'] > threshold]
+            search = [r for r in search if r['fuzz_ratio'] >= threshold]
         else:
-            # If we don't have the movie duration, just use the highest ratio
+            # If we don't have the movie duration, just use
+            # the highest ratio
             max_ratio = max(50., max(r['fuzz_ratio'] for r in search))
             search = [r for r in search if r['fuzz_ratio'] == max_ratio]
             if len(search) > 1:
                 search = [search[0], ]
 
-        LOG.debug('{0} results left after second filters'.format(
-            len(search)))
-        LOG.debug(search)
+            LOG.debug('{0} results left after second filters'.format(
+                len(search)))
+            LOG.debug(search)
 
         if search:
             # Now we need to get more information to identify precisely
