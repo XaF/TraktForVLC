@@ -277,7 +277,7 @@ movies_filename_patterns = [
     '''^(\(.*?\)|\[.*?\])?( - )?[ ]*?               # Anything
         (?P<moviename>.+?)[ ]*?                     # Movie name
         (?:[[(]?(?P<year>[0-9]{4})[])]?.*)?         # Year
-        \.[a-zA-Z0-9]{2,4}$                         # Anything
+        (?:\.[a-zA-Z0-9]{2,4})?$                    # Anything
         ''',
 ]
 
