@@ -217,7 +217,7 @@ class TraktForVLC(object):
             self.log.error("Config file " +
                            configfile +
                            " not found, exiting.")
-            exit()
+            sys.exit(1)
 
         self.log.debug("Running on %s, with Python %s" % (
             platform.platform(), platform.python_version()))
