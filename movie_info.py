@@ -76,21 +76,17 @@ def hashFile(name):
         return "IOError"
 
 
+useragent = 'TraktForVLC v{0}'.format(__version__)
+proxy = None
+login = None
+
+
 def get_movie_info(movie_fname, movie_name,
                    movie_year='', movie_duration=None):
+    global useragent, proxy, login
+
     # Load logger
     LOG = logging.getLogger(__name__)
-
-    # Initialize the connection to opensubtitles
-    useragent = 'TraktForVLC v{0}'.format(__version__)
-    proxy = xmlrpc.ServerProxy("http://api.opensubtitles.org/xml-rpc")
-    login = proxy.LogIn('', '', 'en', useragent)
-    LOG.debug('OpenSubtitles UserAgent: {0}'.format(useragent))
-    imdb = imdbpie.Imdb(
-        # For this version of TraktForVLC, we only want to return movies,
-        # not episodes
-        exclude_episodes=True,
-    )
 
     try:
         movie_name = remove_accents(movie_name)
@@ -114,6 +110,19 @@ def get_movie_info(movie_fname, movie_name,
     movie_found_by_hash = False
 
     if movie_fname and os.path.isfile(movie_fname):
+        # Initialize the connection to opensubtitles
+        if proxy is None:
+            proxy = xmlrpc.ServerProxy("http://api.opensubtitles.org/xml-rpc")
+        if login is None:
+            login = proxy.LogIn('', '', 'en', useragent)
+            LOG.debug('OpenSubtitles UserAgent: {0}'.format(useragent))
+
+        imdb = imdbpie.Imdb(
+            # For this version of TraktForVLC, we only want to return movies,
+            # not episodes
+            exclude_episodes=True,
+        )
+
         # Compute the hash for the file
         movie_hash = hashFile(movie_fname)
         LOG.debug('Computed movie hash: {0}'.format(movie_hash))
