@@ -105,6 +105,13 @@ def get_movie_info(movie_fname, movie_name,
         )
     )
 
+    # Initialize the imdbpie.Imdb object to get more information about movies
+    imdb = imdbpie.Imdb(
+        # For this version of TraktForVLC, we only want to return movies,
+        # not episodes
+        exclude_episodes=True,
+    )
+
     movie_info = None
     movie_hash = None
     movie_found_by_hash = False
@@ -116,12 +123,6 @@ def get_movie_info(movie_fname, movie_name,
         if login is None:
             login = proxy.LogIn('', '', 'en', useragent)
             LOG.debug('OpenSubtitles UserAgent: {0}'.format(useragent))
-
-        imdb = imdbpie.Imdb(
-            # For this version of TraktForVLC, we only want to return movies,
-            # not episodes
-            exclude_episodes=True,
-        )
 
         # Compute the hash for the file
         movie_hash = hashFile(movie_fname)
