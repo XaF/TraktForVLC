@@ -1,20 +1,98 @@
 language: python
-python:
-  - "2.6"
-  - "2.7"
-  - "3.3"
-  - "3.4"
-  - "3.5"
-  - "3.5-dev"
-  - "nightly"
-  - "pypy"
-  - "pypy3"
 
-os:
-  - linux
+matrix:
+    include:
+        - os: linux
+          python: 2.7
+        - os: linux
+          python: 3.3
+        - os: linux
+          python: 3.4
+        - os: linux
+          python: 3.5
+        - os: linux
+          python: 3.5-dev
+        - os: linux
+          python: 3.6
+        - os: linux
+          python: 3.6-dev
+        - os: linux
+          python: 3.7-dev
+        - os: linux
+          python: nightly
+        - os: linux
+          python: pypy
+        - os: linux
+          python: pypy3
+        - os: osx
+          language: generic
+          env: PYTHON=2.7.13
+        - os: osx
+          language: generic
+          env: PYTHON=3.3.6
+        - os: osx
+          language: generic
+          env: PYTHON=3.4.6
+        - os: osx
+          language: generic
+          env: PYTHON=3.5.3
+        - os: osx
+          language: generic
+          env: PYTHON=3.6.1
+        - os: osx
+          language: generic
+          env: PYTHON=pypy
 
 install:
-  - if [[ $TRAVIS_PYTHON_VERSION == 2.6 ]]; then pip install --use-mirrors unittest2; fi
+  - if [ -z "${PYTHON}" ]; then
+        PYTHON="${TRAVIS_PYTHON_VERSION}";
+    fi
+  - if [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then
+        sw_vers;
+        function sort() { $(which gsort) "$@"; };
+    fi
+  - if [[ "${PYTHON}" =~ ^pypy ]]; then
+        if [ "${PYTHON}" == "pypy" ]; then
+            PYTHON=pypy2;
+        fi;
+        PYTHON=$(
+            curl "https://api.bitbucket.org/2.0/repositories/pypy/pypy/refs/tags" 2>/dev/null |
+            grep -oE "release-${PYTHON}[a-zA-Z0-9._-]*" |
+            grep -- '-v' |
+            sed -e 's/^release-//g' -e 's/\-v/\-/g' |
+            sort -t'-' -k1,1Vr -k2,2Vr -u |
+            head -n1
+        );
+        if [ -z "${PYTHON}" ]; then
+            echo "ERROR - No PYPY version found.";
+            exit 1;
+        fi;
+        echo "PyPy version - $PYTHON";
+    fi
+  - if [[ $"${TRAVIS_OS_NAME}" == "osx" ]] || [[ "${PYTHON}" =~ ^pypy ]]; then
+        set -x;
+
+        rm -rf ~/.pyenv;
+
+        git clone --depth 1 https://github.com/pyenv/pyenv ~/.pyenv;
+        PYENV_ROOT="$HOME/.pyenv";
+        PATH="$PYENV_ROOT/bin:$PATH";
+        eval "$(pyenv init -)";
+
+        pyenv install ${PYTHON} || exit 1;
+        pyenv global ${PYTHON} || exit 1;
+
+        pyenv rehash;
+        python -m pip install --user virtualenv;
+
+        set +x;
+    else
+        pip install virtualenv;
+    fi
+  - python --version
+  - python -m virtualenv ~/.venv
+  - source ~/.venv/bin/activate
+  - pip install nose
   - pip install -r requirements.txt
 
-script: echo "Disabled temporarily" # nosetests -vv -w tests/
+script: nosetests -vv -w tests/

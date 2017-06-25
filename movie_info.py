@@ -25,13 +25,14 @@ except ImportError:
     import xmlrpclib as xmlrpc
 
 import fuzzywuzzy.fuzz
-import logging
-import os
-import struct
-
-import unicodedata
 import imdbpie
+import logging
 import math
+import os
+import requests
+import struct
+import time
+import unicodedata
 
 from TraktForVLC import __version__
 
@@ -212,15 +213,32 @@ def get_movie_info(movie_fname, movie_name,
             if len(search) > 1:
                 search = [search[0], ]
 
-            LOG.debug('{0} results left after second filters'.format(
-                len(search)))
-            LOG.debug(search)
+        LOG.debug('{0} results left after second filters'.format(
+            len(search)))
+        LOG.debug(search)
 
         if search:
             # Now we need to get more information to identify precisely
             # the movie
             for r in search:
-                r['details'] = imdb.get_title_by_id(r['imdb_id'])
+                num_try = 0
+                while 'details' not in r:
+                    try:
+                        r['details'] = imdb.get_title_by_id(r['imdb_id'])
+                    except requests.exceptions.HTTPError as e:
+                        if e.response.status_code != 503:
+                            raise
+
+                        num_try += 1
+                        if num_try < 3:
+                            LOG.info((
+                                'Received HTTP 503 error, waiting {0} seconds '
+                                'before retrying for movie {1}'
+                            ).format(2 ** num_try, r))
+                            time.sleep(2 ** num_try)
+                        else:
+                            LOG.info('Received HTTP 503 error, giving up')
+                            break
 
             # Try to get the closest movie using the movie duration
             # if available
@@ -228,7 +246,8 @@ def get_movie_info(movie_fname, movie_name,
                 search,
                 key=lambda x:
                     abs(x['details'].runtime - movie_duration)
-                    if movie_duration and x['details'].runtime is not None
+                    if movie_duration and 'details' in x and
+                    x['details'].runtime is not None
                     else float('inf')
             )
         else:
@@ -238,7 +257,7 @@ def get_movie_info(movie_fname, movie_name,
     details = movie_info.get('details')
 
     if details is None:
-        raise LookupError("unable to find the movie '%s'" % (movie_name))
+        raise LookupError("unable to find the movie '{0}'".format(movie_name))
 
     if movie_hash and \
             not movie_found_by_hash and \

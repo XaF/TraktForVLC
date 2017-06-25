@@ -22,9 +22,29 @@ platform:
   - x64
 
 install:
+  # If there is a newer build queued for the same PR, cancel this one.
+  # The AppVeyor 'rollout builds' option is supposed to serve the same
+  # purpose but it is problematic because it tends to cancel builds pushed
+  # directly to master instead of just PR builds (or the converse).
+  # credits: JuliaLang developers.
+  - ps: if ($env:APPVEYOR_PULL_REQUEST_NUMBER -and $env:APPVEYOR_BUILD_NUMBER -ne ((Invoke-RestMethod `
+        https://ci.appveyor.com/api/projects/$env:APPVEYOR_ACCOUNT_NAME/$env:APPVEYOR_PROJECT_SLUG/history?recordsNumber=50).builds | `
+        Where-Object pullRequestId -eq $env:APPVEYOR_PULL_REQUEST_NUMBER)[0].buildNumber) { `
+          throw "There are newer queued builds for this pull request, failing early." }
+
   # Set the home for the Python version
   - set "PYTHON_HOME=C:\\Python%PYTHON:.=%"
   - if [%PLATFORM%]==[x64] set "PYTHON_HOME=%PYTHON_HOME%-x64"
+
+  # Fix for x64 msvc9compiler.py
+  - if [%PLATFORM%]==[x64] (
+        if not exist "C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\amd64\vcvars64.bat" (
+            echo CALL "C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv.cmd" /x64 > "C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\amd64\vcvars64.bat" &
+            echo Setting vcvars64.bat (fix for msvc9compiler.py^^^)
+        ) else (
+            echo vcvars64.bat already exists.
+        )
+    )
 
   # Print environment information
   - "echo Environment: Python %PYTHON% / Platform %PLATFORM% / %PYTHON_HOME%"
@@ -47,7 +67,7 @@ install:
     )
   - set "PATH=%PYTHON_HOME%;%PYTHON_HOME%\\Scripts;%PATH%"
   - "python --version"
-  - "python -c \"import struct; print(struct.calcsize('P') * 8)\""
+  - "python -c \"import struct; print('Architecture: {0}bit'.format(struct.calcsize('P') * 8))\""
 
   # Install pip
   - appveyor DownloadFile https://bootstrap.pypa.io/get-pip.py
@@ -56,8 +76,11 @@ install:
 
   # Install dependencies
   - "pip install nose"
-  - if [%PYTHON%]==[2.6] pip install unittest2
-  - "pip install pyinstaller"
+  - if [%PYTHON%]==[3.6] (
+        pip install https://github.com/pyinstaller/pyinstaller/archive/develop.zip
+    ) else (
+        pip install pyinstaller
+    )
   - "pip install -r requirements.txt"
 
 build_script:
@@ -110,6 +133,5 @@ deploy:
 
 # Disable the tests for now, we need to fix the number of requests to imdbpie
 # and the retry process before reenabling the tests
-# test_script:
-#   - "nosetests -vv -w tests/"
-test: off
+test_script:
+  - "nosetests -vv -w tests/"
