@@ -53,7 +53,7 @@ from vlcrc import VLCRemote
 
 
 __release_name__ = "Breaking Bad"
-__version_info__ = (1, 3, 0, '-rc4', 0)
+__version_info__ = (1, 3, 0, '-rc5', 0)
 __version__ = "%d.%d.%d%s" % __version_info__[:4]
 
 TIMER_INTERVAL = START_WATCHING_TIMER = 0
@@ -758,6 +758,7 @@ def daemonize(pidfile=""):
 
     if (pidfile):
         open(pidfile, "w").write("%s\n" % str(os.getpid()))
+
 
 if __name__ == '__main__':
     should_pair = should_daemon = False
