@@ -1,0 +1,401 @@
+version: '{branch}.{build}'
+environment:
+  matrix:
+    - PYTHON: "2.7"
+      PYTHON_INSTALL: "2.7.14"
+      VLC_INSTALL: "3.0.1"
+      PIPENV_INSTALL: "9.0.3"
+      should_deploy: yes
+  GITHUB_TOKEN:
+      secure: 3Shl8s7OoiyYyi5Zmmr4XhBrQyHTS4A4jQL6uBcEb8UbO7USkqekpice9EUNU32E
+  APPVEYOR_API_TOKEN:
+      secure: kkr9LewGDRWYZSggRa2+/39A8sPEJuRVVYZhecuuNDg=
+
+platform:
+  - x86
+  - x64
+
+init:
+  # Inspired from scikit-ci-addons's cancel-queued-build.ps1 to cancel
+  # the queued builds that match latest/latest-tmp when using rolling
+  # releases for the latest tag. This also integrates the fact of
+  # cancelling a build if there is a more recent one for the same
+  # pull request.
+  # The AppVeyor 'rollout builds' option is supposed to serve the same
+  # purpose but it is problematic because it tends to cancel builds pushed
+  # directly to master instead of just PR builds (or the converse).
+  - ps: |
+      Function CancelBuild {
+          $version = $args[0]
+          $url = "https://ci.appveyor.com/api/builds/${env:APPVEYOR_ACCOUNT_NAME}/${env:APPVEYOR_PROJECT_SLUG}/${version}"
+          Invoke-RestMethod $url -Method Delete -Headers @{"Authorization" = "Bearer ${env:APPVEYOR_API_TOKEN}"};
+          Write-Host "  Build version $version - cancelled"
+      }
+      Function DeleteBuild {
+          if ($args[0] -eq 'queued' -or $args[0] -eq 'running') {
+              CancelBuild $args[1]
+          }
+          $buildId = $args[2]
+          $url = "https://ci.appveyor.com/api/builds/${buildId}"
+          Invoke-RestMethod $url -Method Delete -Headers @{"Authorization" = "Bearer ${env:APPVEYOR_API_TOKEN}"};
+          Write-Host "  Build ID $buildID - deleted"
+      }
+      $action_self = $false;
+      (Invoke-RestMethod https://ci.appveyor.com/api/projects/$env:APPVEYOR_ACCOUNT_NAME/$env:APPVEYOR_PROJECT_SLUG/history?recordsNumber=50).builds | %{
+          if ($_.isTag) {
+              if ($_.tag -match '^latest(-tmp)?$') {
+                  if ($_.buildId -eq $env:APPVEYOR_BUILD_ID) {
+                      $action_self = 'delete'
+                  } else {
+                      Write-Host "Found build version $($_.version) (ID $($_.buildId)) for tag $($_.tag)"
+                      DeleteBuild $_.status $_.version $_.buildId
+                  }
+              }
+          } elseif (-not $action_self -and $env:APPVEYOR_PULL_REQUEST_NUMBER -and $_.pullRequestId -and $_.pullRequestId -eq $env:APPVEYOR_PULL_REQUEST_NUMBER -and $env:APPVEYOR_BUILD_NUMBER -lt $_.buildNumber) {
+              $action_self = 'cancel'
+          }
+      }
+      if ($action_self -eq 'delete') {
+          Write-Host "Build is for an exception tag. Deleting self."
+          DeleteBuild 'running' $env:APPVEYOR_BUILD_VERSION $env:APPVEYOR_BUILD_ID
+      } elseif ($action_self -eq 'cancel') {
+          Write-Host "There are newer queued builds for this pull request, cancelling build."; `
+          CancelBuild $env:APPVEYOR_BUILD_VERSION
+      }
+
+install:
+  # Set the home for the Python version
+  - set "PYTHON_HOME=C:\\Python%PYTHON:.=%"
+  - if [%PLATFORM%]==[x64] set "PYTHON_HOME=%PYTHON_HOME%-x64"
+
+  # Fix for x64 msvc9compiler.py
+  - if [%PLATFORM%]==[x64] (
+        if not exist "C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\amd64\vcvars64.bat" (
+            echo CALL "C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv.cmd" /x64 > "C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\amd64\vcvars64.bat" &
+            echo Setting vcvars64.bat (fix for msvc9compiler.py^^^)
+        ) else (
+            echo vcvars64.bat already exists.
+        )
+    )
+
+  # Print environment information
+  - "echo Environment: Python %PYTHON% / Platform %PLATFORM% / %PYTHON_HOME%"
+
+  # Install and configure Python in the path to use the needed version
+  - if not exist "%PYTHON_HOME%" ( set "NEEDINSTALL=True" ) else ( set "NEEDINSTALL=False" )
+  - "echo Does Python %PYTHON% (%PLATFORM%) need to be installed? %NEEDINSTALL%"
+  - if [%NEEDINSTALL%]==[True] (
+        if [%PLATFORM%]==[x64] (
+            set "PYTHON_DL=python-%PYTHON_INSTALL%.amd64.msi"
+        ) else (
+            set "PYTHON_DL=python-%PYTHON_INSTALL%.msi"
+        )
+    )
+  - if [%NEEDINSTALL%]==[True] (
+        echo Downloading https://www.python.org/ftp/python/%PYTHON_INSTALL%/%PYTHON_DL% &
+        appveyor DownloadFile https://www.python.org/ftp/python/%PYTHON_INSTALL%/%PYTHON_DL% &
+        echo Installing %PYTHON_DL% in %PYTHON_HOME% &
+        msiexec /i %PYTHON_DL% /qn TARGETDIR=%PYTHON_HOME%
+    )
+  - set "PATH=%PYTHON_HOME%;%PYTHON_HOME%\\Scripts;%PATH%"
+  - "python --version"
+  - "python -c \"import struct; print('Architecture: {0}bit'.format(struct.calcsize('P') * 8))\""
+
+  # Check installed pip version
+  - "pip --version"
+
+  # Install dependencies
+  - "pip install pipenv==%PIPENV_INSTALL%"
+  - "pipenv --version"
+  - "pipenv install --dev"
+
+  # If the build should lead to a deployment, check that the tag is valid,
+  # else, check what the current version will be
+  - ps: |
+      if ($env:APPVEYOR_REPO_TAG -eq "true") {
+          pipenv run "${env:APPVEYOR_BUILD_FOLDER}\version.py" 'check-tag' '--tag' "${env:APPVEYOR_REPO_TAG_NAME}"
+          Invoke-Expression "$(pipenv run "${env:APPVEYOR_BUILD_FOLDER}\version.py" 'environment' '--version' "${env:APPVEYOR_REPO_TAG_NAME}")"
+      } else {
+          Invoke-Expression "$(pipenv run "${env:APPVEYOR_BUILD_FOLDER}\version.py" 'environment')"
+      }
+      printenv | grep '^TRAKT_VERSION' | sort
+  # Set the binary name
+  - ps: |
+      $env:TRAKT_HELPER_BIN = "TraktForVLC_${env:TRAKT_VERSION}_windows_${env:PLATFORM}.exe"
+      $env:TRAKT_HELPER_BIN = $env:TRAKT_HELPER_BIN -replace "[^a-zA-Z0-9_.-]+", "."
+
+  # Install VLC
+  - if [%PLATFORM%]==[x64] (
+        set "VLC_PLATFORM=win64"
+    ) else (
+        set "VLC_PLATFORM=win32"
+    )
+  - set "VLC_INST_EXE=vlc-%VLC_INSTALL%-%VLC_PLATFORM%.exe"
+  - set "VLC_DL=http://download.videolan.org/pub/videolan/vlc/%VLC_INSTALL%/%VLC_PLATFORM%/%VLC_INST_EXE%"
+  - echo Downloading %VLC_DL% &
+    appveyor DownloadFile %VLC_DL%
+  - echo Installing %VLC_INST_EXE% &
+    "%APPVEYOR_BUILD_FOLDER%\\%VLC_INST_EXE%" /L=1033 /S /NCRC
+  # Check VLC version information once installed
+  - ps: |
+      if (${env:PLATFORM} -eq "x64" -OR ${env:ProgramFiles(x86)} -eq $null) {
+          $env:VLCPATH = "${env:ProgramFiles}"
+      } else {
+          $env:VLCPATH = "${env:ProgramFiles(x86)}"
+      }
+      $env:VLCPATH = "${env:VLCPATH}\VideoLAN\VLC"
+      $env:VLCEXE = "${env:VLCPATH}\vlc.exe"
+      $vlcVersion = Start-Process "${env:VLCEXE}" '--version' -PassThru
+      $wshell = New-Object -ComObject wscript.shell
+      $wshell.AppActivate('VLC media player')
+      Start-Sleep -s 1
+      $wshell.SendKeys('~')
+      Start-Sleep -s 1
+      Get-Content "vlc-help.txt"
+  # We need to run VLC once, or next time we'll try to call it, we'll block on
+  # it (it opens a window on first install on Windows...)
+  - ps: |
+      $vlc = Start-Process "${env:VLCEXE}" -PassThru
+      $wshell = New-Object -ComObject wscript.shell
+      $wshell.AppActivate('VLC media player')
+      Start-Sleep -s 1
+      $wshell.SendKeys('~')
+      Start-Sleep -s 1
+      Stop-Process $vlc
+
+build_script:
+  # Set the version in the Python and LUA scripts
+  - "pipenv run \"%APPVEYOR_BUILD_FOLDER%\\version.py\" set --version=%TRAKT_VERSION%"
+  # Compile the Lua scripts
+  - ps: |
+      & "${env:VLCEXE}" -I luaintf --lua-intf luac --lua-config "luac={input='trakt.lua',output='trakt.luac'}"
+  # Then prepare the exe file
+  - "pipenv run pyinstaller --onedir --onefile --name=%TRAKT_HELPER_BIN% --hidden-import=concurrent.futures --add-data=trakt.luac;. --add-data=vlc-logo-1s.mp4;. --console trakt_helper.py"
+  # Test the exe file by first checking if the --version command returns properly
+  - "\"%APPVEYOR_BUILD_FOLDER%\\dist\\%TRAKT_HELPER_BIN%\" --version"
+  # Then print the help message
+  - "\"%APPVEYOR_BUILD_FOLDER%\\dist\\%TRAKT_HELPER_BIN%\" --help"
+
+test_script:
+  # Prepare the variables to know where to check for the installation 
+  - ps: |
+      $env:CONFIG = "${env:APPDATA}\vlc"
+      $env:LUA_USER = "${env:CONFIG}\lua"
+      $env:LUA_SYSTEM = "${env:VLCPATH}\lua"
+
+  # Prepare the function to get VLC's output; because we are on
+  # windows, output is not returned when running a windowed
+  # application, we will thus run VLC through the helper, and
+  # kill it after a few seconds; it happens that even after doing
+  # that, the vlc-output file stays empty. We will thus wait, and
+  # if after 30sec the file is still empty, try again. This will
+  # only be tried 3 times though.
+  - ps: |
+      Function GetVLCOutput {
+          $logFile = $args[0]
+          $max_retry_vlc = 3
+
+          while ($true) {
+              if (Test-Path "$logFile") {
+                  try {
+                      TASKKILL /IM 'vlc.exe' /T /F 2>$null
+                  } catch {}
+                  Remove-Item "$logFile"
+              }
+
+              $vlc = Start-Process "${env:APPVEYOR_BUILD_FOLDER}\dist\${env:TRAKT_HELPER_BIN}" 'runvlc' -PassThru -RedirectStandardOutput "$logFile"
+              Start-Sleep -s 5
+              TASKKILL /IM 'vlc.exe'
+              $max_check_file = 6
+              $more = ''
+              while ($max_check_file -gt 0 -and (Get-Content "$logFile") -eq $null) {
+                  echo "Waiting 5 ${more}seconds for VLC Output to be filled"
+                  Start-Sleep -s 5
+                  $more = 'more '
+                  $max_check_file -= 1
+              }
+              if ((Get-Content "$logFile") -eq $null) {
+                  if ($max_retry_vlc -gt 0) {
+                      $max_retry_vlc -= 1
+                  } else {
+                      Throw "Max number of retries reached, still not able to get any data in the VLC log output; aborting.";
+                  }
+              } else {
+                  return
+              }
+          }
+      }
+
+  # Prepare the function to check VLC output and verify that it was
+  # correctly configured with TraktForVLC, and that TraktForVLC has
+  # the right configuration and is requesting for Trakt.tv access
+  - ps: |
+      Function CheckVLCOutput {
+          $logFile = $args[0]
+          $helper = $args[1]
+
+          $matches = Select-String -Path "$logFile" -Pattern '\[trakt\] lua interface: helper: (.*)$'
+          if ($matches.Count -eq 0) {
+              Throw "The line declaring the helper was not found."
+          } elseif ($matches.Matches.Groups[1].Value -ne "$helper") {
+              Throw "The helper found is located at $($matches.Matches.Groups[1].Value) instead of $helper"
+          } else {
+              echo "The helper was correctly found: $($matches.Matches.Groups[1].Value)"
+          }
+          $matches = Select-String -Path "$logFile" -Pattern '^TraktForVLC is not setup'
+          if ($matches.Count -eq 0) {
+              Throw "TraktForVLC was not requesting for Trakt.tv access :("
+          } else {
+              echo "TraktForVLC was requesting for Trakt.tv access :)"
+          }
+          $matches = Select-String -Path "$logFile" -Pattern '^TraktForVLC setup failed'
+          if ($matches.Count -ne 0) {
+              Throw "TraktForVLC failed (setup fail) before we stopped VLC :("
+          } else {
+              echo "TraktForVLC did not fail (setup fail) before we stopped VLC :)"
+          }
+      }
+
+  # Prepare the function to both get VLC output log and check it,
+  # and allow for a number of errors before raising
+  - ps: |
+      Function CheckVLCWithTrakt {
+          $logFile = $args[0]
+          $helper = $args[1]
+
+          $max_try = 2
+          for ($i = 0; $i -lt $max_try; $i++) {
+              echo "Checking VLC with Trakt ($($i+1)/$max_try)"
+
+              GetVLCOutput "$logFile"
+
+              ls "$logFile"
+              Get-Content "$logFile"
+
+              try {
+                  CheckVLCOutput "$logFile" "$helper"
+              } catch {
+                  if ($i -eq ($max_try - 1)) {
+                      throw
+                  }
+                  continue
+              }
+
+              return
+          }
+      }
+
+  ############################################################################
+  # TEST INSTALLATION AS A SERVICE (SYSTEM)
+  ############################################################################
+  # Install with default parameters
+  - "\"%APPVEYOR_BUILD_FOLDER%\\dist\\%TRAKT_HELPER_BIN%\" --debug install --service --yes --no-init-trakt-auth"
+  # Then we need to check if everything was installed as we would expect
+  - ps: |
+      ls "${env:LUA_SYSTEM}\trakt_helper.exe"
+      ls "${env:LUA_SYSTEM}\intf\trakt.luac"
+  # Check that the JSON file exists, and that it has the service configuration
+  - ps: |
+      python -c "import json, os
+      fpath = '{}\\vlc\\trakt_config.json'.format(os.getenv('APPDATA'))
+      with open(fpath, 'r') as f:
+        d = json.load(f)
+      if 'helper' not in d:
+          raise RuntimeError('helper information not found')
+      if 'mode' not in d['helper'] or d['helper']['mode'] != 'service':
+          raise RuntimeError('helper mode not set to service ({})'.format(
+              d['helper'].get('mode')))
+      if 'service' not in d['helper']:
+          raise RuntimeError('helper service information not found')
+      if 'host' not in d['helper']['service'] or d['helper']['service']['host'] != 'localhost':
+          raise RuntimeError('helper service host not set correctly ({})'.format(
+              d['helper']['service'].get('host')))
+      if 'port' not in d['helper']['service'] or d['helper']['service']['port'] != 1984:
+          raise RuntimeError('helper service port not set correctly ({})'.format(
+              d['helper']['service'].get('port')))"
+  # Check that VLC is correctly configured with TraktForVLC
+  - ps: CheckVLCWithTrakt "${env:APPVEYOR_BUILD_FOLDER}\vlc-output.log" "${env:LUA_SYSTEM}\trakt_helper.exe"
+  # Test the update tool
+  - ps: |
+      $vlc_log = "${env:APPVEYOR_BUILD_FOLDER}\update_output_vlc.log"
+      $update_log_file = "${env:APPVEYOR_BUILD_FOLDER}\update_output.log"
+      $trakt_config = "trakt={check_update={file=`"`"`"`"${env:APPVEYOR_BUILD_FOLDER}\dist\${env:TRAKT_HELPER_BIN}`"`"`"`",wait=30,output=`"`"`"`"${update_log_file}`"`"`"`"}}"
+      Start-Process "${env:APPVEYOR_BUILD_FOLDER}\dist\${env:TRAKT_HELPER_BIN}" -ArgumentList 'runvlc','--','--lua-config',"$($trakt_config -replace '\\','\\')" -PassThru -RedirectStandardOutput "$vlc_log"
+      Start-Sleep -s 60
+      ls "$vlc_log"
+      cat "$vlc_log"
+      ls "$update_log_file"
+      cat "$update_log_file"
+  # Then uninstall
+  - "\"%LUA_SYSTEM%\\trakt_helper.exe\" --debug uninstall --service --yes"
+  # And check that the files are not there
+  - ps: |
+      $files = "${env:LUA_SYSTEM}\trakt_helper.exe","${env:LUA_SYSTEM}\intf\trakt.luac"
+      $not_deleted = $false
+      ForEach ($f in $files) {
+          if (Test-Path "$f") {
+              Write-Error "File $f exists but should have been deleted" -Category ResourceExists
+              $not_deleted = $true
+          } else {
+              echo "File $f has been deleted properly"
+          }
+      }
+      if ($not_deleted) {
+          Throw "Some files have not been cleaned-up during uninstall"
+      }
+
+artifacts:
+  - path: 'dist\$(TRAKT_HELPER_BIN)'
+    name: $(APPVEYOR_PROJECT_NAME)-$(APPVEYOR_REPO_BRANCH)-$(PLATFORM)
+
+before_deploy:
+  - ps: |
+      if ($env:APPVEYOR_REPO_TAG -eq "true") {
+          $env:RELEASE_DRAFT = $false;
+          $env:RELEASE_PRE = $env:TRAKT_VERSION_PRE_TYPE -ne $null;
+      } else {
+          $env:TRAKT_VERSION_NAME = "$env:APPVEYOR_REPO_BRANCH-branch";
+          $env:RELEASE_PRE = $false;
+          $env:RELEASE_DRAFT = $true;
+          $env:TRAKT_VERSION_DESCRIPTION = "Draft of release for branch $env:APPVEYOR_REPO_BRANCH. $env:TRAKT_VERSION_DESCRIPTION";
+      }
+  - ps: 'echo "RELEASE NAME: $env:TRAKT_VERSION_NAME"'
+  - ps: 'echo "RELEASE DESCRIPTION: $env:TRAKT_VERSION_DESCRIPTION"'
+  - ps: 'echo "IS PRE RELEASE ? $env:RELEASE_PRE"'
+  - ps: 'echo "IS RELEASE DRAFT ? $env:RELEASE_DRAFT"'
+
+deploy:
+  - tag: $(APPVEYOR_REPO_TAG_NAME)
+    release: $(TRAKT_VERSION_NAME)
+    description: $(TRAKT_VERSION_DESCRIPTION)
+    provider: GitHub
+    auth_token: $(GITHUB_TOKEN)
+    artifact: $(APPVEYOR_PROJECT_NAME)-$(APPVEYOR_REPO_BRANCH)-$(PLATFORM)
+    draft: $(RELEASE_DRAFT)
+    prerelease: $(RELEASE_PRE)
+    on:
+      should_deploy: yes
+      appveyor_repo_tag: true
+
+on_success:
+  # Check if we need to update the 'latest' rolling release
+  - ps : |
+      if ($env:APPVEYOR_REPO_TAG -ne 'true' -and $env:APPVEYOR_REPO_BRANCH -eq 'master' -and $env:APPVEYOR_PULL_REQUEST_NUMBER -eq $null -and $env:APPVEYOR_API_TOKEN -ne $null) {
+          $env:UPDATE_LATEST = "true"
+      } else {
+          $env:UPDATE_LATEST = "false"
+      }
+  # To update the 'latest' rolling release if we are on the right branch
+  - if [%UPDATE_LATEST%]==[true] (
+        pipenv install scikit-ci-addons &
+        pipenv run ci_addons publish_github_release --prerelease-packages "dist\\%TRAKT_HELPER_BIN%" --prerelease-packages-clear-pattern "TraktForVLC_*_windows_%PLATFORM%.exe" --prerelease-packages-keep-pattern "%TRAKT_HELPER_BIN%" --prerelease-sha "%APPVEYOR_REPO_BRANCH%" --re-upload "%APPVEYOR_REPO_NAME%"
+    )
+  # The cancel-queued-build.ps1 script does not take care of deleting the jobs,
+  # and it will become a lot of unused jobs very fast. To keep that clean, we
+  # just run that request at the end to clean it
+  - ps: |
+      if ($env:UPDATE_LATEST -eq "true") {
+          (Invoke-RestMethod https://ci.appveyor.com/api/projects/$env:APPVEYOR_ACCOUNT_NAME/$env:APPVEYOR_PROJECT_SLUG/history?recordsNumber=10).builds | Where-Object {$_.isTag -and $_.tag -match '^latest(-tmp)?$'} | %{
+              DeleteBuild $_.status $_.version $_.buildId
+          }
+      }
