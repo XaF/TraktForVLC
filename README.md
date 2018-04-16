@@ -1,5 +1,8 @@
-TraktForVLC [![Travis Build Status](https://travis-ci.org/XaF/TraktForVLC.svg?branch=master)](https://travis-ci.org/XaF/TraktForVLC) [![AppVeyor Build status](https://ci.appveyor.com/api/projects/status/e1ie51bwhbki60ns/branch/master?svg=true)](https://ci.appveyor.com/project/XaF/traktforvlc/branch/master)
+TraktForVLC [![Travis Build Status](https://travis-ci.org/XaF/TraktForVLC.svg?branch=1.x)](https://travis-ci.org/XaF/TraktForVLC) [![AppVeyor Build status](https://ci.appveyor.com/api/projects/status/e1ie51bwhbki60ns/branch/1.x?svg=true)](https://ci.appveyor.com/project/XaF/traktforvlc/branch/1.x)
 ===========
+
+> This branch of TraktForVLC (1.x) has been deprecated and replaced.
+> Please look at the releases section of GitHub, or at the master branch.
 
 ## Table of Contents
 
