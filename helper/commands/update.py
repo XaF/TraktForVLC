@@ -145,8 +145,7 @@ class CommandUpdate(CommandInstallUpdateDelete):
         if release_type or version:
             if release_type:
                 resp = requests.get(
-                    'https://api.github.com/repos/XaF/testingTFV/releases')
-                #    'https://api.github.com/repos/XaF/TraktForVLC/releases')
+                    'https://api.github.com/repos/XaF/TraktForVLC/releases')
 
                 if not resp.ok:
                     raise RuntimeError('Unable to get the releases from '
