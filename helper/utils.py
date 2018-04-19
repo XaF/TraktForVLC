@@ -88,6 +88,10 @@ def get_vlc():
             fpath = os.path.join(p, 'VideoLAN', 'VLC', 'vlc.exe')
             if os.path.isfile(fpath):
                 return fpath
+    elif platform.system() == 'Darwin':
+        fpath = '/Applications/VLC.app/Contents/MacOS/VLC'
+        if os.path.isfile(fpath) and os.access(fpath, os.X_OK):
+            return fpath
     return distutils.spawn.find_executable('vlc')
 
 
