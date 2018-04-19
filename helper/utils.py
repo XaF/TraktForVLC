@@ -148,13 +148,14 @@ def get_os_config(system=None, config=None, lua=None):
                     lua = os.path.join(home, '.local', 'share', 'vlc', 'lua')
         elif opsys == 'Darwin':
             if not config:
-                config = os.path.join(home, 'Library', 'Application Support',
+                config = os.path.join(home, 'Library', 'Preferences',
                                       'org.videolan.vlc')
             if not lua:
                 if system:
                     lua = '/Applications/VLC.app/Contents/MacOS/share/lua'
                 else:
-                    lua = os.path.join(config, 'lua')
+                    lua = os.path.join(home, 'Library', 'Application Support',
+                                       'org.videolan.vlc', 'lua')
         elif opsys == 'Windows':
             if not config:
                 config = os.path.join(os.getenv('APPDATA'), 'vlc')

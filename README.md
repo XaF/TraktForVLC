@@ -96,7 +96,7 @@ The configuration file for TraktForVLC is a JSON file named `trakt_config.json`.
 ### Location
 The `trakt_config.json` file is located in your VLC configuration directory. Depending on your OS, the VLC configuration directory will be located at the following places:
 * Linux: `~/.config/vlc`
-* MacOS: `~/Library/Application Support/org.videolan.vlc`
+* MacOS: `~/Library/Preferences/org.videolan.vlc`
 * Windows: `%APPDATA%/vlc` (where `%APPDATA%` is the value of the `APPDATA` environment variable)
 
 ### Sections
