@@ -69,7 +69,7 @@ class CommandUninstall(CommandInstallUpdateDelete):
             )
 
     def run(self, dry_run, yes, system, service, service_host, service_port,
-            vlc_bin, vlc_config, vlc_lua, max_wait=None):
+            vlc_bin, vlc_config, vlc_lua, vlc_verbose, max_wait=None):
         if service and platform.system() != 'Windows':
             LOGGER.error('The service mode is not supported yet for {}'.format(
                 platform.system()))
@@ -167,6 +167,8 @@ class CommandUninstall(CommandInstallUpdateDelete):
                 '--lua-intf', 'trakt',
                 '--lua-config', 'trakt={autostart="disable"}',
             ]
+            if vlc_verbose:
+                command.extend(['--verbose', str(vlc_verbose)])
             LOGGER.debug('Running command: {}'.format(
                 subprocess.list2cmdline(command)))
             disable = subprocess.Popen(

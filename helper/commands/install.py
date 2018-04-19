@@ -115,6 +115,13 @@ class CommandInstallUpdateDelete(Command):
             dest='vlc_bin',
             help='To specify manually where the VLC executable is',
         )
+        parser.add_argument(
+            '--vlc-verbose',
+            nargs='?',
+            const=1,
+            type=int,
+            help='To specify the verbose level wanted for VLC logs',
+        )
 
 
 ##########################################################################
@@ -138,7 +145,7 @@ class CommandInstall(CommandInstallUpdateDelete):
         )
 
     def run(self, dry_run, yes, system, service, service_host, service_port,
-            vlc_bin, vlc_config, vlc_lua, init_trakt_auth):
+            vlc_bin, vlc_config, vlc_lua, vlc_verbose, init_trakt_auth):
         if service and platform.system() != 'Windows':
             LOGGER.error('The service mode is not supported yet for {}'.format(
                 platform.system()))
@@ -220,6 +227,8 @@ class CommandInstall(CommandInstallUpdateDelete):
                 '--vlc-config-directory', config,
                 '--yes',
             ]
+            if vlc_verbose:
+                command.extend(['--vlc-verbose', str(vlc_verbose)])
             if system:
                 command.append('--system')
             if service:
@@ -375,6 +384,8 @@ class CommandInstall(CommandInstallUpdateDelete):
                 '--lua-intf', 'trakt',
                 '--lua-config', 'trakt={autostart="enable"}',
             ]
+            if vlc_verbose:
+                command.extend(['--verbose', str(vlc_verbose)])
             LOGGER.debug('Running command: {}'.format(
                 subprocess.list2cmdline(command)))
             enable = subprocess.Popen(
@@ -414,4 +425,4 @@ class CommandInstall(CommandInstallUpdateDelete):
                 init_trakt_auth == (True, 'force'):
             LOGGER.info('Initializing authentication with Trakt.tv')
             init_trakt = CommandInitTraktAuth()
-            init_trakt.run(vlc_bin=vlc_bin)
+            init_trakt.run(vlc_bin=vlc_bin, vlc_verbose=vlc_verbose)

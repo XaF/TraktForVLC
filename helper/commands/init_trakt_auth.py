@@ -49,8 +49,15 @@ class CommandInitTraktAuth(Command):
             dest='vlc_bin',
             help='To specify manually where the VLC executable is',
         )
+        parser.add_argument(
+            '--vlc-verbose',
+            nargs='?',
+            const=1,
+            type=int,
+            help='To specify the verbose level wanted for VLC logs',
+        )
 
-    def run(self, vlc_bin):
+    def run(self, vlc_bin, vlc_verbose):
         # Try to find the VLC executable if it has not been passed as
         # parameter
         if not vlc_bin:
@@ -69,6 +76,8 @@ class CommandInitTraktAuth(Command):
             '--lua-config',
             'trakt={init_auth=1}',
         ]
+        if vlc_verbose:
+            command.extend(['--verbose', str(vlc_verbose)])
         if platform.system() == 'Windows':
             command.extend([
                 '--osd',

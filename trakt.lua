@@ -880,7 +880,9 @@ end
 function file.save_json(filepath, data)
     local file = io.open(filepath, 'w')
     if file then
-        file:write(json.encode(data, { indent = true }))
+        local jsondata = json.encode(data, { indent = true })
+        vlc.msg.dbg('Writing to ' .. filepath .. ': ' .. dump(jsondata))
+        file:write(jsondata)
         file:close()
     else
         error('Error opening the file ' .. filepath .. ' to save')
