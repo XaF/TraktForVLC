@@ -1824,6 +1824,11 @@ function get_current_info()
         if not uri_proto and not uri_path then
             uri_proto = 'file'
             uri_path = infos['uri']
+        elseif uri_proto == 'file' and
+                uri_path:sub(1,1) == '/' and
+                ospath.sep == '\\' then
+            -- On Windows, remove leading slash for file URIs
+            uri_path = uri_path:sub(2)
         end
 
         cache[infos['key']].uri_proto = uri_proto
