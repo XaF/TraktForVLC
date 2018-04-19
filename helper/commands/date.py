@@ -26,11 +26,15 @@ from __future__ import (
 import datetime
 import json
 import logging
+import platform
 import pytz
 
 from helper.utils import (
     Command,
 )
+
+if platform.system() == 'Windows':
+    import time
 
 LOGGER = logging.getLogger(__name__)
 
@@ -95,7 +99,13 @@ class CommandDate(Command):
         date = [
             {
                 'format': f,
-                'date': to_dt.strftime(f),
+                'date': to_dt.strftime(
+                    # On Windows, '%s' is not supported, we thus need to
+                    # patch it using the time module
+                    f.replace('%s', str(int(time.time())))
+                    if platform.system() == 'Windows'
+                    else f
+                ),
                 'timezone': to_tz.zone,
             }
             for f in format
