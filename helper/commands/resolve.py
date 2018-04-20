@@ -534,43 +534,42 @@ class CommandResolve(Command):
                                 parsed['episode']['show'], re.sub(
                                     '^\"([^"]*)\" .*$', '\\1', x['MovieName']))
 
-                        # Use fuzzywuzzy to get the closest show name
-                        closest = max(
-                            (
-                                m
-                                for m in medias
-                                if m['MovieKind'] == 'episode' and
-                                int(m['SeriesSeason']) == season and
-                                int(m['SeriesEpisode']) == fepisode
-                            ),
-                            key=weight_episode,
-                        )
-                        if weight_episode(closest) >= .8:
-                            media = closest
+                        # Filter only the episodes that can match with the
+                        # information we got
+                        episodes = [
+                            m for m in medias
+                            if m['MovieKind'] == 'episode' and
+                            int(m['SeriesSeason']) == season and
+                            int(m['SeriesEpisode']) == fepisode
+                        ]
+
+                        if episodes:
+                            # Use fuzzywuzzy to get the closest show name
+                            closest = max(
+                                episodes,
+                                key=weight_episode,
+                            )
+                            if weight_episode(closest) >= .8:
+                                media = closest
 
                 if not media and 'movie' in parsed:
                     movie = parsed['movie']
 
                     media_name = movie.get('title')
 
-                    # Use fuzzywuzzy to get the closest movie name
-                    media = max(
-                        medias,
-                        key=lambda x: fuzzywuzzy.fuzz.ratio(
-                            media_name, x['MovieName'])
-                    )
+                    # Filter only the movies
+                    movies = [
+                        m for m in medias
+                        if m['MovieKind'] == 'movie'
+                    ]
 
-                    imdb = imdbpie.Imdb(
-                        exclude_episodes=True,
-                    )
-
-                    try:
-                        result = imdb.get_title(
-                            'tt{}'.format(media['MovieImdbID']))
-                    except Exception as e:
-                        raise ResolveException(e)
-
-                    return imdb, result
+                    if movies:
+                        # Use fuzzywuzzy to get the closest movie name
+                        media = max(
+                            movies,
+                            key=lambda x: fuzzywuzzy.fuzz.ratio(
+                                media_name, x['MovieName'])
+                        )
 
             # If when reaching here we don't have the media, return None
             if not media:
