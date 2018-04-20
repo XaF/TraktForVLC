@@ -52,7 +52,6 @@ def resolve_episode_ids(series, season, episode, year=None):
     ##################################################################
     # TVDB
     tvdb = tvdb_api.Tvdb(
-        cache=False,
         language='en',
     )
 
@@ -67,10 +66,19 @@ def resolve_episode_ids(series, season, episode, year=None):
             tvdb_series = None
             tvdb_search = tvdb.search(series)
             for s in tvdb_search:
-                if s['seriesName'].startswith(series) and \
-                        int(s['firstAired'].split('-')[0]) == year:
-                    tvdb_series = tvdb[s['seriesName']]
-                    break
+                if not s['seriesName'].startswith(series):
+                    LOGGER.debug('TVDB: Discarding result because of the name '
+                                 'not beginning with the expected series '
+                                 'name: {}'.format(s))
+                    continue
+
+                if int(s['firstAired'].split('-')[0]) != year:
+                    LOGGER.debug('TVDB: Discarding result because of the year '
+                                 'not matching: {}'.format(s))
+                    continue
+
+                tvdb_series = tvdb[s['seriesName']]
+                break
 
         tvdb_season = tvdb_series[season]
         tvdb_episode = tvdb_season[episode]
@@ -98,6 +106,9 @@ def resolve_episode_ids(series, season, episode, year=None):
                 (tvdb_series is None or
                  (s['name'] != tvdb_series['seriesName'] and
                   s['name'] not in tvdb_series['aliases'])):
+            LOGGER.debug('TMDB: Discarding result because of the name '
+                         'not matching with the expected series '
+                         'name: {}'.format(s))
             continue
 
         # Try to get the episode information
@@ -113,6 +124,9 @@ def resolve_episode_ids(series, season, episode, year=None):
         if 'tvdb' in ids and \
                 tmdb_external_ids.get('tvdb_id') is not None and \
                 ids['tvdb'] != tmdb_external_ids['tvdb_id']:
+            LOGGER.debug('TMDB: Discarding result because of the TVDB id not '
+                         'matching with the one found on the TVDB '
+                         'side: {}'.format(s))
             continue
 
         ids['tmdb'] = tmdb_external_ids['id']
