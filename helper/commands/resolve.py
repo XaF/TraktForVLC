@@ -643,7 +643,8 @@ class CommandResolve(Command):
             )
 
             # Select only the titles over a given threshold
-            threshold = mean_ratio + std_dev_ratio
+            threshold = min(mean_ratio + std_dev_ratio,
+                            max(r['fuzz_ratio'] for r in search))
             search = [r for r in search if r['fuzz_ratio'] >= threshold]
 
             # Now we need to get more information to identify precisely
@@ -653,15 +654,17 @@ class CommandResolve(Command):
 
             # Try to get the closest movie using the movie duration
             # if available
-            closest = min(
-                search,
-                key=lambda x:
-                    abs(x['details']['base']['runningTimeInMinutes'] * 60. -
-                        duration)
-                    if duration and
-                    x['details']['base']['runningTimeInMinutes'] is not None
-                    else sys.maxint
-            )
+            def weight_movie_by_duration(movie):
+                if not duration:
+                    return sys.maxint
+
+                rt = movie['details']['base'].get('runningTimeInMinutes')
+                if rt is None:
+                    return sys.maxint
+
+                return abs(rt * 60. - duration)
+
+            closest = min(search, key=weight_movie_by_duration,)
 
             # Return the imdb information of the closest movie found
             return imdb, closest['details'], closest['fuzz_ratio']
