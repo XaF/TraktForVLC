@@ -2414,7 +2414,12 @@ function process_scrobble_ready()
                             table.insert(command, imdbinfo.parentTitle.title)
                             table.insert(command, tostring(imdbinfo.season))
                             table.insert(command, tostring(imdbinfo.episode))
-                            table.insert(command, tostring(imdbinfo.parentTitle.year))
+                            table.insert(
+                                command,
+                                tostring(imdbinfo.parentTitle.year))
+                            table.insert(
+                                command,
+                                string.sub(imdbinfo.parentTitle.id, 8, -2))
                         else
                             table.insert(command, '--movie')
                             table.insert(command, imdbinfo.title)

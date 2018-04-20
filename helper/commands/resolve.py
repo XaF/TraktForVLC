@@ -875,7 +875,9 @@ class CommandResolve(Command):
                 m_season = m['base']['season']
                 m_ep = m['base']['episode']
                 m_year = m['base']['parentTitle']['year']
-                ids = resolve_episode_ids(m_series, m_season, m_ep, m_year)
+                m_series_imdbid = m['base']['parentTitle']['id'][7:-1]
+                ids = resolve_episode_ids(m_series, m_season, m_ep, m_year,
+                                          m_series_imdbid)
             else:
                 m_movie = m['base']['title']
                 m_year = m['base']['year']

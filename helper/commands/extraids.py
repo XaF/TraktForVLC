@@ -42,7 +42,7 @@ tmdbsimple.API_KEY = 'ad2d828c5ec2d46c06e1c38e181c125b'
 
 ##############################################################################
 # To resolve an episode ids
-def resolve_episode_ids(series, season, episode, year=None):
+def resolve_episode_ids(series, season, episode, year=None, imdbid=None):
     # To store the IDs found
     ids = {}
 
@@ -60,22 +60,24 @@ def resolve_episode_ids(series, season, episode, year=None):
         # Try getting the series directly, but check the year if available
         # as sometimes series have the same name but are from different years
         tvdb_series = tvdb[series]
-        if year is not None and tvdb_series['firstAired'] and \
+        if (imdbid is None or tvdb_series['imdbId'] != imdbid) and \
+                year is not None and tvdb_series['firstAired'] and \
                 year != int(tvdb_series['firstAired'].split('-')[0]):
             # It is not the expected year, we thus need to perform a search
             tvdb_series = None
             tvdb_search = tvdb.search(series)
             for s in tvdb_search:
-                if not s['seriesName'].startswith(series):
-                    LOGGER.debug('TVDB: Discarding result because of the name '
-                                 'not beginning with the expected series '
-                                 'name: {}'.format(s))
-                    continue
+                if imdbid is None or s['imdbId'] != imdbid:
+                    if not s['seriesName'].startswith(series):
+                        LOGGER.debug('TVDB: Discarding result because of the '
+                                     'name not beginning with the expected '
+                                     'series name: {}'.format(s))
+                        continue
 
-                if int(s['firstAired'].split('-')[0]) != year:
-                    LOGGER.debug('TVDB: Discarding result because of the year '
-                                 'not matching: {}'.format(s))
-                    continue
+                    if int(s['firstAired'].split('-')[0]) != year:
+                        LOGGER.debug('TVDB: Discarding result because of the '
+                                     'year not matching: {}'.format(s))
+                        continue
 
                 tvdb_series = tvdb[s['seriesName']]
                 break
@@ -174,6 +176,7 @@ class Media(object):
     episode = None
     movie = None
     year = None
+    imdbid = None
 
 
 ##############################################################################
@@ -186,12 +189,12 @@ class ActionEpisode(argparse.Action):
             required=required, help=help)
 
     def __call__(self, parser, namespace, values, option_strings=None):
-        if len(values) < 3 or len(values) > 4:
+        if len(values) < 3 or len(values) > 5:
             parser.error('argument {}: format is SERIES_NAME SEASON_NUMBER '
-                         'EPISODE_NUMBER [YEAR]')
+                         'EPISODE_NUMBER [YEAR [SERIES_IMDBID]]')
             return
 
-        for i, v in enumerate(values[1:]):
+        for i, v in enumerate(values[1:-1]):
             try:
                 values[i + 1] = int(v)
             except ValueError:
@@ -203,8 +206,10 @@ class ActionEpisode(argparse.Action):
         media.series = values[0]
         media.season = values[1]
         media.episode = values[2]
-        if len(values) > 3:
+        if len(values) > 3 and values[3]:
             media.year = values[3]
+        if len(values) > 4 and values[4]:
+            media.imdbid = values[4]
 
         current = getattr(namespace, self.dest)
         if current is None:
@@ -237,7 +242,7 @@ class ActionMovie(argparse.Action):
 
         media = Media()
         media.movie = values[0]
-        if len(values) > 1:
+        if len(values) > 1 and values[1]:
             media.year = values[1]
 
         current = getattr(namespace, self.dest)
@@ -280,7 +285,7 @@ class CommandExtraIDs(Command):
 
         for e in episodes:
             ep_ids = resolve_episode_ids(e.series, e.season,
-                                         e.episode, e.year)
+                                         e.episode, e.year, e.imdbid)
 
             ids.setdefault(
                 'episode', {}).setdefault(
