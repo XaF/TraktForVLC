@@ -1782,6 +1782,12 @@ function get_current_info()
     repeat
     until item:stats()["demux_read_bytes"] > 0
 
+    if item:stats()['decoded_video'] == 0 then
+        -- This is not a video, stop now
+        vlc.msg.dbg('Not a video; doing nothing.')
+        return
+    end
+
     infos['name'] = item:name()
     infos['uri'] = vlc.strings.decode_uri(item:uri())
     infos['duration'] = item:duration()
@@ -2517,6 +2523,12 @@ function determine_media_status()
             media_is_stopped(last_infos)
         end
         last_infos = infos
+
+        -- If we do not have a current info table (perhaps only using
+        -- vlc for music ?), we do not want to do anything
+        if not infos then
+            return
+        end
 
         -- We're going to run a different function if the media is
         -- currently playing or paused
