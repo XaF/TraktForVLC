@@ -668,9 +668,16 @@ class CommandResolve(Command):
                 if rt is None:
                     return sys.maxint
 
-                return abs(rt * 60. - duration)
+                movie['duration_closeness'] = abs(rt * 60. - duration)
+                return movie['duration_closeness']
 
             closest = min(search, key=weight_movie_by_duration,)
+
+            # If the closest still has a duration difference with the expected
+            # one that is more than half of the expected duration, it is
+            # probably not the right one!
+            if duration and closest['duration_closeness'] > (duration / 2.):
+                return
 
             # Return the imdb information of the closest movie found
             return imdb, closest['details'], closest['fuzz_ratio']
