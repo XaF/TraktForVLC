@@ -2770,6 +2770,14 @@ else
     while trakt.configured do
         determine_media_status()
         sleep(1)
+
+        -- Check if VLC is still running; if it is not, we want to
+        -- stop the loop now - We check that by checking the current
+        -- volume, and if VLC has been stopped, this command will
+        -- return -256
+        if vlc.volume.get() == -256 then
+            break
+        end
     end
 end
 
