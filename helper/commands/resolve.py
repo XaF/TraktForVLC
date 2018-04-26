@@ -606,6 +606,12 @@ class CommandResolve(Command):
             except Exception as e:
                 raise ResolveException(e)
 
+            # Filter out everything that is not starting with 'tt', as only
+            # IMDB IDs starting with 'tt' represent movies/episodes, and
+            # filter out everything considered as a TV series
+            search = [s for s in search
+                      if s['imdb_id'].startswith('tt') and
+                      s['type'] != 'TV series']
             if not search:
                 return
 
