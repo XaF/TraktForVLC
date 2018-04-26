@@ -159,8 +159,12 @@ def resolve_movie_ids(movie, year=None):
         search.results = []
 
     for s in search.results:
-        if s['title'] != movie.decode('utf-8'):
-            continue
+        if s['title'] != movie:
+            try:
+                if s['title'] != movie.decode('utf-8'):
+                    continue
+            except UnicodeEncodeError as e:
+                continue
 
         ids['tmdb'] = s['id']
         break
