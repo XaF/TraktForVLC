@@ -710,7 +710,8 @@ class CommandResolve(Command):
                 search = [
                     s for s in search
                     if s['type'] == 'TV series' and
-                    s['title'] == seriesName
+                    (s['title'] == seriesName or
+                     '{title} ({year})'.format(**s) == seriesName)
                 ]
 
                 # If there is still more than one, filter by year
