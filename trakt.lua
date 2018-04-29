@@ -965,6 +965,9 @@ function get_config()
     if not lconfig.media.stop.check_unprocessed_delay then
         lconfig.media.stop.check_unprocessed_delay = 120  -- 120 seconds
     end
+    if not lconfig.media.stop.delay then
+        lconfig.media.stop.delay = 1200  -- 20 minutes
+    end
 
     -- Default helper config
     if not lconfig.helper then

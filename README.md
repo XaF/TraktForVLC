@@ -122,6 +122,7 @@ The `trakt_config.json` file is located in your VLC configuration directory. Dep
         * `movie`: Whether or not to scrobble movies as watched (default: `true`)
         * `episode`: Whether or not to scrobble episodes as watched (default: `true`)
         * `check_unprocessed_delay`: Delay (in seconds) between checks for medias that should be scrobbled as watched but have not been for any reason (no internet connection, media not identified yet, etc.) (default: `120`)
+        * `delay`: Delay (in seconds) between scrobbles for a given media (any subsequent scrobble in the given delay will be ignored) (default: `1200` - 20 minutes)
 * `helper`: Configuration relative to the helper tool
     * `mode`: The mode of the helper. Can be one of `standalone` or `service` (default: `standalone`)
     * `service`: The service configuration, when the helper is installed as a service
