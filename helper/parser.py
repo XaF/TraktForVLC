@@ -32,6 +32,7 @@ from helper.version import (
     __release_name__,
     __build_date__,
     __build_system__,
+    __build_system_release__,
     __author__,
 )
 
@@ -124,8 +125,11 @@ class PrintVersion(argparse.Action):
             ' "{}"'.format(__release_name__) if __release_name__ else '',
             ' for {}'.format(__build_system__) if __build_system__ else ''))
         version_desc.append('Copyright (C) 2017-2018 {}'.format(__author__))
-        if __build_date__:
-            version_desc.append('Built on {}'.format(__build_date__))
+        if __build_date__ or __build_system_release__:
+            version_desc.append('Built{}{}'.format(
+                ' on {}'.format(__build_date__) if __build_date__ else '',
+                ' with {}'.format(__build_system_release__)
+                if __build_system_release__ else ''))
         version_desc.extend([
             '',
             'This program is distributed in the hope that it will be useful,',
