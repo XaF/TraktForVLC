@@ -245,6 +245,7 @@ class CIVersionReader(GitVersionReader):
                     return None
 
             # Get that tag's description
+            tag_desc = None
             try:
                 tag_desc = subprocess.check_output(
                     ['git', 'tag', '-n', tag],
@@ -260,6 +261,9 @@ class CIVersionReader(GitVersionReader):
                 if e.strerror != 'No such file or directory':
                     raise
 
+            if tag_desc is None:
+                return
+
             # Use a regular expression to check if this leads to a release name
             relname_re = re.compile(
                 '^{}\s*(?:Prer|R)elease: (?P<relname>.*)$'.format(
@@ -272,7 +276,7 @@ class CIVersionReader(GitVersionReader):
                     commit = '{}^'.format(tag)
                     continue
                 else:
-                    return None
+                    return
 
             return m.group('relname')
 
