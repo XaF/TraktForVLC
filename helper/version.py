@@ -22,6 +22,7 @@
 
 __version__ = '0.0.0a0.dev0'
 __release_name__ = ''
+__release_type__ = ''
 __build_date__ = ''
 __build_system__ = ''
 __build_system_release__ = ''

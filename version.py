@@ -35,6 +35,7 @@ import os
 import platform
 import re
 import shutil
+import struct
 import subprocess
 import tempfile
 import time
@@ -505,6 +506,24 @@ def set_version(full, release_name=None, **env):
 
         return ''
 
+    def release_type():
+        if reset:
+            return ''
+
+        system = platform.system().lower()
+        if system == 'darwin':
+            system = 'osx'
+        elif system == 'windows':
+            arch = struct.calcsize('P') * 8
+            if arch == 32:
+                system = '{}_x86'.format(system)
+            elif arch == 64:
+                system = '{}_x64'.format(system)
+        if os.getenv('BIN_SUFFIX'):
+            system = '{}_{}'.format(system, os.environ['BIN_SUFFIX'])
+
+        return system
+
     rules = [
         {
             'files': [
@@ -549,6 +568,11 @@ def set_version(full, release_name=None, **env):
                     re.compile("^(__build_system_release__ = )'.*'$",
                                re.MULTILINE),
                     "\g<1>'{}'".format(build_system_release()),
+                ),
+                (
+                    re.compile("^(__release_type__ = )'.*'$",
+                               re.MULTILINE),
+                    "\g<1>'{}'".format(release_type()),
                 ),
             ],
         },

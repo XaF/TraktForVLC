@@ -31,7 +31,6 @@ import platform
 import re
 import requests
 import stat
-import struct
 import subprocess
 import tempfile
 
@@ -43,6 +42,7 @@ from helper.utils import (
 )
 from helper.version import (
     __version__,
+    __release_type__,
 )
 
 LOGGER = logging.getLogger(__name__)
@@ -143,6 +143,10 @@ class CommandUpdate(CommandInstallUpdateDelete):
         ret = {}
 
         if release_type or version:
+            if not __release_type__:
+                print('{}')
+                return
+
             if release_type:
                 resp = requests.get(
                     'https://api.github.com/repos/XaF/TraktForVLC/releases')
@@ -163,18 +167,11 @@ class CommandUpdate(CommandInstallUpdateDelete):
                 search_level = releases_level[release_type]
 
             # Determine the format of the asset we will check to download
-            system = platform.system().lower()
-            if system == 'darwin':
-                system = 'osx'
-            elif system == 'windows':
-                arch = struct.calcsize('P') * 8
-                if arch == 32:
-                    system = '{}_x86'.format(system)
-                elif arch == 64:
-                    system = '{}_x64'.format(system)
-                system = '{}.exe'.format(system)
+            asset_suffix = __release_type__
+            if platform.system() == 'Windows':
+                asset_suffix = '{}.exe'.format(asset_suffix)
             asset_re = re.compile('^TraktForVLC_(?P<version>.*)_{}$'.format(
-                re.escape(system)))
+                re.escape(asset_suffix)))
 
             # Then try and go through the available releases on GitHub to check
             # for the most recent one fitting our parameters
