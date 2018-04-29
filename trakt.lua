@@ -897,112 +897,161 @@ local
 function get_config()
     local lconfig = file.get_json(config_file, {})
 
-    -- Default configuration version
+    -- =======================================================================
+    -- The version of TraktForVLC that generated the configuration file
+    -- (present for retrocompatibility purposes)
     if not lconfig.config_version then
         lconfig.config_version = __version__
     end
 
-    -- Default cache config
+    -- =======================================================================
+    -- Configuration relative to the media cache used by TraktForVLC
     if not lconfig.cache then
         lconfig.cache = {}
     end
+    -- The delays for operations performed on the media cache
     if not lconfig.cache.delay then
         lconfig.cache.delay = {}
     end
+    -- Delay (in seconds) between save operations on the cache
     if not lconfig.cache.delay.save then
         lconfig.cache.delay.save = 30  -- 30 seconds
     end
+    -- Delay (in seconds) between cleanup operations on the cache
     if not lconfig.cache.delay.cleanup then
         lconfig.cache.delay.cleanup = 60  -- 60 seconds
     end
+    -- Time (in seconds) after which an unused entry in the cache expires
     if not lconfig.cache.delay.expire then
         lconfig.cache.delay.expire = 2592000  -- 30 days
     end
 
-    -- Default media config
+    -- =======================================================================
+    -- Configuration relative to media resolution and scrobbling
     if not lconfig.media then
         lconfig.media = {}
     end
+
+    -- -----------------------------------------------------------------------
+    -- Configuration relative to media resolution
     if not lconfig.media.info then
         lconfig.media.info = {}
     end
+    -- Maximum number of times we will try to resolve the current watched
+    -- item through IMDB
     if not lconfig.media.info.max_try then
         lconfig.media.info.max_try = 10
     end
+    -- Delay factor (in seconds) between try attempts; if try_delay_factor
+    -- is f and attempt is n, next try will be after n*f seconds
     if not lconfig.media.info.try_delay_factor then
         lconfig.media.info.try_delay_factor = 30  -- 30 seconds
     end
+
+    -- -----------------------------------------------------------------------
+    -- Configuration relative to media watching status
     if not lconfig.media.start then
         lconfig.media.start = {}
     end
+    -- Time after which a media will be marked as being watched on trakt.tv
     if not lconfig.media.start.time then
         lconfig.media.start.time = 30  -- 30 seconds
     end
+    -- Percentage of the media watched after which the media will be marked
+    -- as being watched on trakt.tv
     if not lconfig.media.start.percent then
         lconfig.media.start.percent = .25  -- 0.25%
     end
+    -- Whether or not to mark movies as being watched
     if not lconfig.media.start.movie then
         lconfig.media.start.movie = true
     end
+    -- Whether or not to mark episodes as being watched
     if not lconfig.media.start.episode then
         lconfig.media.start.episode = true
     end
+
+    -- -----------------------------------------------------------------------
+    -- Configuration relative to media scrobbling
     if not lconfig.media.stop then
         lconfig.media.stop = {}
     end
+    -- The minimum watched percent for a media to be scrobbled as seen on
+    -- trakt.tv; i.e. you must have watched at least that percentage of
+    -- the media, for it to be scrobbled
     if not lconfig.media.stop.watched_percent then
         lconfig.media.stop.watched_percent = 50  -- 50%
     end
+    -- The minimum percentage of the media duration at which you must
+    -- currently be for the media to be scrobbled as seen (if the media
+    -- has a duration of 100mn, and you configured the percent as 90,
+    -- you must at least be at the 90th minute of the media)
     if not lconfig.media.stop.percent then
         lconfig.media.stop.percent = 90  -- 90%
     end
+    -- Whether or not to scrobble movies as watched
     if not lconfig.media.stop.movie then
         lconfig.media.stop.movie = true
     end
+    -- Whether or not to scrobble episodes as watched
     if not lconfig.media.stop.episode then
         lconfig.media.stop.episode = true
     end
+    -- Delay (in seconds) between checks for medias that should be
+    -- scrobbled as watched but have not been for any reason (no
+    -- internet connection, media not identified yet, etc.)
     if not lconfig.media.stop.check_unprocessed_delay then
         lconfig.media.stop.check_unprocessed_delay = 120  -- 120 seconds
     end
+    -- Delay (in seconds) between scrobbles for a given media (any
+    -- subsequent scrobble in the given delay will be ignored)
     if not lconfig.media.stop.delay then
         lconfig.media.stop.delay = 1200  -- 20 minutes
     end
 
-    -- Default helper config
+    -- =======================================================================
+    -- Configuration relative to the helper tool
     if not lconfig.helper then
         lconfig.helper = {}
     end
+    -- The mode of the helper. Can be one of 'standalone' or 'service'.
     if not lconfig.helper.mode then
-        lconfig.helper.mode = 'standalone'  -- Can be one of 'standalone', 'service'
+        lconfig.helper.mode = 'standalone'
     end
 
-    -- Default helper service config
+    -- -----------------------------------------------------------------------
+    -- The service configuration, when the helper is installed as a service
     if not lconfig.helper.service then
         lconfig.helper.service = {}
     end
+    -- The host on which the service is listening
     if not lconfig.helper.service.host then
         lconfig.helper.service.host = 'localhost'
     end
+    -- The port on which the service is listening
     if not lconfig.helper.service.port then
         lconfig.helper.service.port = 1984
     end
 
-    -- Default helper update config
+    -- -----------------------------------------------------------------------
+    -- To configure the automatic updates for TraktForVLC
     if not lconfig.helper.update then
         lconfig.helper.update = {}
     end
+    -- Delay (in seconds) in between checks for new updates, disabled
+    -- if set to '0'
     if not lconfig.helper.update.check_delay then
-        lconfig.helper.update.check_delay = 86400  -- 24 hours, set to 0 to disable
+        lconfig.helper.update.check_delay = 86400  -- 24 hours
     end
+    -- The type of releases to look for. Can be one of 'stable', 'rc',
+    -- 'beta', 'alpha' or 'latest'
     if not lconfig.helper.update.release_type then
-        lconfig.helper.update.release_type = 'stable' -- Can be one of 'stable',
-                                                      -- 'rc', 'beta', 'alpha' or
-                                                      -- 'latest'
+        lconfig.helper.update.release_type = 'stable'
     end
+    -- The action to perform automatically when a new release is found.
+    -- Can be one of 'install', 'download' or 'check'
     if not lconfig.helper.update.action then
-        lconfig.helper.update.action = 'install'  -- Can be one of 'install',
-                                                  -- 'download' or 'check'
+        lconfig.helper.update.action = 'install'
     end
 
     return lconfig

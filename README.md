@@ -129,9 +129,9 @@ The `trakt_config.json` file is located in your VLC configuration directory. Dep
         * `host`: The host on which the service is listening (default: `localhost`)
         * `port`: The port on which the service is listening (default: `1984`)
     * `update`: To configure the automatic updates for TraktForVLC
-        * `check_delay`: The delay - in seconds - in between checks for new updates (default: `86400` - 24 hours)
-        * `release_type`: The type of releases to look for. Can be one of `stable`, `rc`, `beta`, `alpha`, `latest` (default: `stable`)
-        * `action`: The action to perform automatically when a new release is found. Can be one of `install`, `download` and `check` (default: `install`)
+        * `check_delay`: Delay (in seconds) in between checks for new updates, disabled if set to `0` (default: `86400` - 24 hours)
+        * `release_type`: The type of releases to look for. Can be one of `stable`, `rc`, `beta`, `alpha` or `latest` (default: `stable`)
+        * `action`: The action to perform automatically when a new release is found. Can be one of `install`, `download` or `check` (default: `install`)
 
 
 ## Issues
