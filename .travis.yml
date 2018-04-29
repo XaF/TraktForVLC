@@ -13,6 +13,12 @@ matrix:
         - os: osx
           language: generic
           env: PYTHON=2.7.14
+        - os: osx
+          osx_image: xcode6.4
+          language: generic
+          env:
+            - PYTHON=2.7.14
+            - BIN_SUFFIX=legacy
 
 env:
     global:
@@ -33,10 +39,10 @@ before_install:
   # as well as print the OSX software information
   - if [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then
         sw_vers;
-        function sort() { $(which gsort) "$@"; };
-        function timeout() { $(which gtimeout) "$@"; };
         export HOMEBREW_NO_AUTO_UPDATE=1;
+        which gsort >/dev/null 2>&1 || brew install coreutils;
         brew install gnu-sed --with-default-names;
+        export PATH="/usr/local/opt/coreutils/libexec/gnubin:$PATH";
     fi
   # If we are on pypy, determine which is the latest version by using the
   # bitbucket's API on pypy's repository
@@ -107,7 +113,10 @@ before_install:
     fi &&
     printenv | grep '^TRAKT_VERSION' | sort
   # Set the binary name
-  - TRAKT_HELPER_BIN=$(echo "TraktForVLC_${TRAKT_VERSION}_${TRAVIS_OS_NAME}" | sed -r 's/[^a-zA-Z0-9_.-]+/./g')
+  - TRAKT_HELPER_BIN=$(echo "TraktForVLC_${TRAKT_VERSION}_${TRAVIS_OS_NAME}" | sed -r 's/[^a-zA-Z0-9_.-]+/./g');
+    if [ -n "${BIN_SUFFIX}" ]; then
+        TRAKT_HELPER_BIN="${TRAKT_HELPER_BIN}_${BIN_SUFFIX}";
+    fi
   # Install VLC
   - if [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then
         brew cask install vlc;
@@ -317,6 +326,10 @@ deploy:
 
 after_success:
   - if [ -z "${TRAVIS_TAG}" ] && [ "${TRAVIS_BRANCH}" == "master" ] && [ "${TRAVIS_PULL_REQUEST}" == "false" ]; then
+        CLEAR_PATTERN="TraktForVLC_*_${TRAVIS_OS_NAME}";
+        if [ -n "$BIN_SUFFIX" ]; then
+            CLEAR_PATTERN="${CLEAR_PATTERN}_${BIN_SUFFIX}";
+        fi;
         pipenv install scikit-ci-addons &&
-        pipenv run ci_addons publish_github_release --prerelease-packages "dist/${TRAKT_HELPER_BIN}" --prerelease-packages-clear-pattern "TraktForVLC_*_${TRAVIS_OS_NAME}" --prerelease-packages-keep-pattern "${TRAKT_HELPER_BIN}" --prerelease-sha "${TRAVIS_BRANCH}" --re-upload "${TRAVIS_REPO_SLUG}";
+        pipenv run ci_addons publish_github_release --prerelease-packages "dist/${TRAKT_HELPER_BIN}" --prerelease-packages-clear-pattern "${CLEAR_PATTERN}" --prerelease-packages-keep-pattern "${TRAKT_HELPER_BIN}" --prerelease-sha "${TRAVIS_BRANCH}" --re-upload "${TRAVIS_REPO_SLUG}";
     fi  
