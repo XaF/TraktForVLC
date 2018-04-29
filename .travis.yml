@@ -91,10 +91,9 @@ before_install:
         pip install pipenv==${PIPENV};
     fi
   # Print Python version
-  - python --version
+  - python --version; which python
   - pipenv --version
   # Install all dependencies
-  - python --version; which python
   - echo $PATH; pipenv install --dev
   # If the build should lead to a deployment, check that the tag is valid,
   # else, check what the current version will be
