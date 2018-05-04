@@ -1627,7 +1627,15 @@ function get_play_time()
     if not vlc.input.is_playing() then
         return nil
     end
-    return vlc.var.get(vlc.object.input(), "time") / 1000000
+    -- Compute the current play time using the position and the length
+    -- as the result is more precise than using directly 'time'
+    local play_time = (vlc.var.get(vlc.object.input(), "position") *
+                       vlc.var.get(vlc.object.input(), "length"))
+    -- Starting with VLC 3, time is returned in microseconds
+    if tonumber(vlc.misc.version():match('^[0-9]*')) > 2 then
+        play_time = play_time / 1000000.
+    end
+    return play_time
 end
 
 
