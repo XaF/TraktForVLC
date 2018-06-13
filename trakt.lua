@@ -1378,9 +1378,11 @@ function trakt.scrobble(action, media, percent)
     local body = {
         [media['type']] = {
             ['ids'] = {
-                ['imdb'] = string.sub(media.imdb.id, 8, -2),
+                ['imdb'] = media.imdb.imdbid,
                 ['tvdb'] = media.imdb.tvdbid,
                 ['tmdb'] = media.imdb.tmdbid,
+                ['trakt'] = media.imdb.traktid,
+                ['tvrage'] = media.imdb.tvrageid,
             },
         },
         ['progress'] = percent,
@@ -1457,15 +1459,20 @@ function trakt.add_to_history(medias)
     local movies = {}
     local episodes = {}
 
+    -- All the available kind of ids to use to identify something
+    local available_ids = {'imdb', 'tvdb', 'tmdb', 'trakt', 'tvrage'}
+
     for k, v in pairs(medias) do
-        if v.imdbid and v.type and v.watched_at then
+        local ids = {}
+        if v.type and v.watched_at then
+            for _, idk in pairs(available_ids) do
+                ids[idk] = v[idk .. 'id']
+            end
+        end
+        if next(ids) ~= nil then
             local data = {
                 ['watched_at'] = v.watched_at,
-                ['ids'] = {
-                    ['imdb'] = v.imdbid,
-                    ['tvdb'] = v.tvdbid,
-                    ['tmdb'] = v.tmdbid,
-                },
+                ['ids'] = ids,
             }
             if v.type == 'movie' then
                 table.insert(movies, data)
@@ -1683,6 +1690,8 @@ function complete_cache_data(key, max_try_obj)
         local args = {
             '--quiet',
             'resolve',
+            '--trakt-api-key',
+            trakt.api_key,
             '--meta',
             json.encode(cache[key].meta),
             '--duration',
@@ -1971,6 +1980,15 @@ function get_current_info()
         local play_time_imdb = infos['play']['global'] * play_factor
         -- Search the current media
         for k, v in pairs(cache[infos['key']].imdb_details.per_media) do
+            -- // BEGIN: TO BE REMOVED IN FUTURE VERSIONS
+            -- Compatibility: convert imdb.base.id to imdb.base.imdbid
+            if not cache[infos['key']].imdb[k].base.imdbid and
+                    cache[infos['key']].imdb[k].base.id then
+                cache[infos['key']].imdb[k].base.imdbid = string.sub(
+                        cache[infos['key']].imdb[k].base.id, 8, -2)
+            end
+            -- // END: TO BE REMOVED IN FUTURE VERSIONS
+
             if v['from'].percent <= infos['ratio'].global and
                     v['to'].percent >= infos['ratio'].global then
                 infos['local_idx'] = k
@@ -2419,9 +2437,11 @@ function process_scrobble_ready()
             for k, v in pairs(sr) do
                 table.insert(medias, {
                     ['watched_at'] = v.when,
-                    ['imdbid'] = string.sub(media.imdb[v.idx].base.id, 8, -2),
+                    ['imdbid'] = media.imdb[v.idx].base.imdbid,
                     ['tvdbid'] = media.imdb[v.idx].base.tvdbid,
                     ['tmdbid'] = media.imdb[v.idx].base.tmdbid,
+                    ['traktid'] = media.imdb[v.idx].base.traktid,
+                    ['tvrageid'] = media.imdb[v.idx].base.tvrageid,
                     ['type'] = media.imdb_details.per_media[v.idx].type,
                     ['cache'] = {
                         ['key'] = key,
@@ -2450,10 +2470,10 @@ function process_scrobble_ready()
     if #medias > result.added.episodes + result.added.movies then
         local not_found = {}
         for k, v in pairs(result.not_found.movies) do
-            table.insert(not_found, v.ids.imdb)
+            table.insert(not_found, v.ids)
         end
         for k, v in pairs(result.not_found.episodes) do
-            table.insert(not_found, v.ids.imdb)
+            table.insert(not_found, v.ids)
         end
 
         -- Prepare the command to search for extra ids
@@ -2465,7 +2485,16 @@ function process_scrobble_ready()
 
         for _, v in pairs(not_found) do
             for k, m in pairs(medias) do
-                if m and m.imdbid == v then
+                local matches = false
+                if m then
+                    for idk, idv in pairs(v) do
+                        if m[idk .. 'id'] and m[idk .. 'id'] == idv then
+                            matches = true
+                            break
+                        end
+                    end
+                end
+                if matches then
                     vlc.msg.err('Media ' .. m.cache.key ..
                                 ' (idx: ' .. m.cache.idx .. ')' ..
                                 ' was not added to history')
@@ -2485,7 +2514,7 @@ function process_scrobble_ready()
                                 tostring(imdbinfo.parentTitle.year))
                             table.insert(
                                 command,
-                                string.sub(imdbinfo.parentTitle.id, 8, -2))
+                                imdbinfo.parentTitle.imdbid)
                         else
                             table.insert(command, '--movie')
                             table.insert(command, imdbinfo.title)

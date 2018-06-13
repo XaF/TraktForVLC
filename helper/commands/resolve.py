@@ -23,12 +23,14 @@ from __future__ import (
     absolute_import,
     print_function,
 )
+import dateutil.parser
 import fuzzywuzzy.fuzz
 import imdbpie
 import json
 import logging
 import math
 import re
+import requests
 import sys
 import tvdb_api
 
@@ -403,6 +405,17 @@ def tobyte(input):
 
 
 ##########################################################################
+# Class to return a fully computed result directly
+class ReturnResult(object):
+    def __init__(self, result):
+        self._result = result
+
+    @property
+    def result(self):
+        return self._result
+
+
+##########################################################################
 # Class to represent resolution exceptions
 class ResolveException(Exception):
     pass
@@ -464,8 +477,13 @@ class CommandResolve(Command):
             type=float,
             help='The duration of the media, in seconds',
         )
+        parser.add_argument(
+            '--trakt-api-key',
+            help='The Trakt API key to be used to resolve series from '
+                 'Trakt.tv',
+        )
 
-    def run(self, meta, oshash, size, duration):
+    def run(self, meta, oshash, size, duration, trakt_api_key):
         # Prepare the parameters
         meta = json.loads(meta)
 
@@ -696,64 +714,171 @@ class CommandResolve(Command):
 
             # Perform the search, if nothing is found, there's a problem...
             try:
-                series = tvdb.search(ep['show'])
+                tvdb_series = tvdb.search(ep['show'])
             except Exception as e:
                 raise ResolveException(e)
 
-            if not series:
+            if not tvdb_series:
                 return
 
-            series = tvdb[series[0]['seriesName']]
-            episode = series[ep['season']][ep['episodes'][0]]
+            tvdb_series = tvdb[tvdb_series[0]['seriesName']]
+            tvdb_episode = tvdb_series[ep['season']][ep['episodes'][0]]
 
             # Initialize the imdb object to perform the research
             imdb = imdbpie.Imdb(
                 exclude_episodes=False,
             )
 
-            # Use imdb to search for the series using its name or aliases
-            search = None
-            for seriesName in [series['seriesName'], ] + series['aliases']:
-                try:
-                    search = imdb.search_for_title(seriesName)
-                except Exception as e:
-                    raise ResolveException(e)
+            # Initialize the series imdb id to None so we know if the TVDB
+            # id was at least sufficient to determine the series we're
+            # watching
+            series_imdbid = None
 
-                # Filter the results by name and type
-                search = [
-                    s for s in search
-                    if s['type'] == 'TV series' and
-                    (s['title'] == seriesName or
-                     '{title} ({year})'.format(**s) == seriesName)
-                ]
+            # Try and get the information using the TVDB id we just found
+            trakt_result = None
+            if trakt_api_key:
+                trakt_session = requests.Session()
+                trakt_session.headers.update({
+                    'Content-Type': 'application/json',
+                    'trakt-api-version': '2',
+                    'trakt-api-key': trakt_api_key,
+                })
+                resp = trakt_session.get(
+                    'https://api.trakt.tv/search/tvdb/{}?type=episode'.format(
+                        tvdb_episode['id']),
+                )
 
-                # If there is still more than one, filter by year
-                if len(search) > 1:
+                # If we found the result from Trakt, use it!
+                if resp.status_code == requests.codes.ok:
+                    trakt_result = resp.json()[0]
+                    if trakt_result['episode']['ids']['imdb']:
+                        return imdb, imdb.get_title(
+                            trakt_result['episode']['ids']['imdb'])
+                    if trakt_result['show']['ids']['imdb']:
+                        series_imdbid = trakt_result['show']['ids']['imdb']
+
+            if not series_imdbid:
+                # Use imdb to search for the series using its name or aliases
+                search = None
+                for seriesName in [tvdb_series['seriesName'], ] + \
+                        tvdb_series['aliases']:
+                    try:
+                        search = imdb.search_for_title(seriesName)
+                    except Exception as e:
+                        raise ResolveException(e)
+
+                    # Filter the results by name and type
                     search = [
                         s for s in search
-                        if s['year'] == series['firstAired'][:4]
+                        if s['type'] == 'TV series' and
+                        (s['title'] == seriesName or
+                         '{title} ({year})'.format(**s) == seriesName)
                     ]
 
-                # If we have a series, we can stop there!
-                if search:
-                    break
+                    # If there is still more than one, filter by year
+                    if len(search) > 1:
+                        search = [
+                            s for s in search
+                            if s['year'] == tvdb_series['firstAired'][:4]
+                        ]
 
-            # If we did not find anything that matches
-            if not search:
-                return
+                    # If we have a series, we can stop there!
+                    if search:
+                        break
+
+                # If we did not find anything that matches
+                if not search:
+                    return
+
+                # We found the series IMDb id
+                series_imdbid = search[0]['imdb_id']
 
             # Get the series' seasons and episodes
-            series = imdb.get_title_episodes(search[0]['imdb_id'])
-            for season in series['seasons']:
-                if season['season'] != ep['season']:
+            imdb_series = imdb.get_title_episodes(series_imdbid)
+            for imdb_season in imdb_series['seasons']:
+                if 'season' not in imdb_season or \
+                        imdb_season['season'] != ep['season']:
                     continue
 
-                for episode in season['episodes']:
-                    if episode['episode'] != ep['episodes'][0]:
+                for imdb_episode in imdb_season['episodes']:
+                    if 'episode' not in imdb_episode or \
+                            imdb_episode['episode'] != ep['episodes'][0]:
                         continue
 
                     # id is using format /title/ttXXXXXX/
-                    return imdb, imdb.get_title(episode['id'][7:-1])
+                    return imdb, imdb.get_title(imdb_episode['id'][7:-1])
+
+            # We did not find the series, but if we have extra ids, try to
+            # fake it!
+            if trakt_result:
+                # Add as many episodes as needed to compute the information for
+                numbers = [trakt_result['episode']['number'],]
+                while len(numbers) < len(parsed['episode']['episodes']):
+                    numbers.append(numbers[-1] + 1)
+
+                # Prepare the show information
+                parentTitle = {
+                    'id': (
+                        '/title/{}/'.format(
+                            trakt_result['show']['ids']['imdb'])
+                        if trakt_result['show']['ids'].get('imdb') else None
+                    ),
+                    'year': trakt_result['show']['year'],
+                    'title': trakt_result['show']['title'],
+                    'titleType': 'tvSeries',
+                }
+                parentTitle.update({
+                    '{}id'.format(k): v for k, v
+                    in trakt_result['show']['ids'].items()
+                    if v is not None
+                })
+
+                media_list = []
+                for epnum in numbers:
+                    # Query for the episode information directly from Trakt
+                    resp = trakt_session.get(
+                        'https://api.trakt.tv/shows/{}/'
+                        'seasons/{}/episodes/{}?extended=full'.format(
+                            trakt_result['show']['ids']['slug'],
+                            trakt_result['episode']['season'],
+                            epnum,
+                        ),
+                    )
+
+                    # If there was an error, raise an exception
+                    resp.raise_for_status()
+
+                    # Else, get the JSON data
+                    respj = resp.json()
+
+                    # Prepare the fake imdb media output
+                    media = {
+                        'base': {
+                            'id': (
+                                '/title/{}/'.format(respj['ids']['imdb'])
+                                if respj['ids'].get('imdb') else None
+                            ),
+                            'parentTitle': parentTitle,
+                            'year': dateutil.parser.parse(
+                                respj['first_aired']).year,
+                            'episode': respj['number'],
+                            'season': respj['season'],
+                            'title': respj['title'],
+                            'seriesStartYear': parentTitle['year'],
+                            'runningTimeInMinutes': respj.get('runtime'),
+                        },
+                    }
+                    media['base'].update({
+                        '{}id'.format(k): v
+                        for k, v in respj['ids'].items()
+                        if v is not None
+                    })
+
+                    # And add it to the list
+                    media_list.append(media)
+
+                # Return the list we just build
+                return ReturnResult(media_list)
 
             # Not found
             return
@@ -851,6 +976,14 @@ class CommandResolve(Command):
             print('[]')
             return
 
+        # If the returned data is of type ReturnResult, just return the
+        # result as it is
+        if isinstance(media, ReturnResult):
+            print(json.dumps(tobyte(media.result), sort_keys=True,
+                             indent=4, separators=(',', ': '),
+                             ensure_ascii=False))
+            return
+
         # Split the imdb object so we can reuse the one that has been
         # instanciated during the research
         ratio = media[2] if len(media) > 2 else 0
@@ -872,6 +1005,9 @@ class CommandResolve(Command):
                     'Exception when trying to insert the hash: {}'.format(e))
 
         # Return in the form of a list
+        media['base']['imdbid'] = media['base']['id'][7:-1]
+        media['base']['parentTitle']['imdbid'] = \
+            media['base']['parentTitle']['id'][7:-1]
         media_list = [media, ]
 
         # If it was an episode, and we had more episodes in the list...
@@ -880,7 +1016,11 @@ class CommandResolve(Command):
             while len(media_list) < len(parsed['episode']['episodes']):
                 # id is using format /title/ttXXXXXX/ - We just want
                 # the ttXXXXXX
-                media = imdb.get_title(media['base']['nextEpisode'][7:-1])
+                imdbid = media['base']['nextEpisode'][7:-1]
+                media = imdb.get_title(imdbid)
+                media['base']['imdbid'] = imdbid
+                media['base']['parentTitle']['imdbid'] = \
+                    media['base']['parentTitle']['id'][7:-1]
                 media_list.append(media)
 
         for m in media_list:
