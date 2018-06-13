@@ -1851,7 +1851,7 @@ function get_current_info()
     repeat
     until item:stats()["demux_read_bytes"] > 0
 
-    if item:stats()['decoded_video'] == 0 then
+    if item:stats()['displayed_pictures'] == 0 then
         -- This is not a video, stop now
         vlc.msg.dbg('Not a video; doing nothing.')
         return
