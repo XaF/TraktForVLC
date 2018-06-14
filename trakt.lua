@@ -310,7 +310,12 @@ end
 ------------------------------------------------------------------------------
 local
 function movieHash(fileName)
-    local fil = assert(io.open(fileName, 'rb'))
+    local fil, err = io.open(fileName, 'rb')
+    if not fil then
+        vlc.msg.debug('Error opening file \'' .. fileName .. '\': ' ..
+                      err .. '; media hash will not be resolved.')
+        return
+    end
     local lo, hi = 0, 0
     for i = 1, 8192 do
         local a, b, c, d = fil:read(4):byte(1, 4)
@@ -1912,12 +1917,14 @@ function get_current_info()
         loc_cache_changed = true
     end
 
+    local media_hash, media_size
     if cache[infos['key']].uri_proto == 'file' and
             (not cache[infos['key']].hash or
              not cache[infos['key']].size) then
         -- Compute the media hash and size
-        local media_hash, media_size = movieHash(cache[infos['key']].uri_path)
-
+        media_hash, media_size = movieHash(cache[infos['key']].uri_path)
+    end
+    if media_hash then
         -- Check if any file in the cache matches those information
         for k,v in pairs(cache) do
             if v.hash == media_hash or v.size == media_size then
