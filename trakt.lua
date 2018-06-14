@@ -1905,10 +1905,20 @@ function get_current_info()
             uri_proto = 'file'
             uri_path = infos['uri']
         elseif uri_proto == 'file' and
-                uri_path:sub(1,1) == '/' and
                 ospath.sep == '\\' then
-            -- On Windows, remove leading slash for file URIs
-            uri_path = uri_path:sub(2)
+            if uri_path:sub(1,1) == '/' then
+                -- On Windows, remove leading slash for file URIs
+                uri_path = uri_path:sub(2)
+            elseif string.match(uri_path, '^[a-zA-Z0-9][a-zA-Z0-9]+/') then
+                -- If the resolved path is an UNC path (starting by the
+                -- network drive name), change the uri_proto to unc to
+                -- specify that we will not try and resolve the media hash
+                vlc.msg.info('Media path is in the form of the Universal ' ..
+                             'Naming Convention; Map the drive to a drive ' ..
+                             'letter in order for the media hashes to be ' ..
+                             'resolved.')
+                uri_proto = 'unc'
+            end
         end
 
         cache[infos['key']].uri_proto = uri_proto
