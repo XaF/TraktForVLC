@@ -1006,8 +1006,9 @@ class CommandResolve(Command):
 
         # Return in the form of a list
         media['base']['imdbid'] = media['base']['id'][7:-1]
-        media['base']['parentTitle']['imdbid'] = \
-            media['base']['parentTitle']['id'][7:-1]
+        if 'parentTitle' in media['base']:
+            media['base']['parentTitle']['imdbid'] = \
+                media['base']['parentTitle']['id'][7:-1]
         media_list = [media, ]
 
         # If it was an episode, and we had more episodes in the list...
