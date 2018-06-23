@@ -88,7 +88,7 @@ def parse_filename(filename):
         '''^\[(?P<group>.+?)\][ ]?
             (?P<seriesname>.*)
             [ ]?[-_][ ]?
-            (?P<episodenumber>\d+)
+            (?P<absoluteepisodenumber>\d+)
             (?=
               .*
               \[(?P<crc>.+?)\]
@@ -182,7 +182,7 @@ def parse_filename(filename):
         # foo - [012]
         '''^((?P<seriesname>.+?)[ \._\-])?
             \[
-            (?P<episodenumber>[0-9]+)
+            (?P<absoluteepisodenumber>[0-9]+)
             \]
             [^\\/]*$''',
         # foo.s0101, foo.0201
@@ -252,7 +252,7 @@ def parse_filename(filename):
         # show name 2 of 6 - blah
         '''^(?P<seriesname>.+?)
             [ \._\-]
-            (?P<episodenumber>[0-9]+)
+            (?P<absoluteepisodenumber>[0-9]+)
             of
             [ \._\-]?
             \d+
@@ -303,7 +303,7 @@ def parse_filename(filename):
         # show.name.e123.abc
         '''^(?P<seriesname>.+?)
             [ \._\-]
-            [Ee](?P<episodenumber>[0-9]+)
+            [Ee](?P<absoluteepisodenumber>[0-9]+)
             [\._ -][^\\/]*$
             ''',
     ]
@@ -320,26 +320,32 @@ def parse_filename(filename):
             'show': None,
             'season': None,
             'episodes': None,
+            'absepisodes': False,
         }
 
         # Show name
         series['show'] = cleanRegexedName(m.group('seriesname'))
 
-        # Season
-        series['season'] = int(m.group('seasonnumber'))
+        if 'absoluteepisodenumber' in groupnames:
+            # Absolute episode number (no season)
+            series['absepisodes'] = True
+            series['episodes'] = [int(m.group('absoluteepisodenumber')), ]
+        else:
+            # Season
+            series['season'] = int(m.group('seasonnumber'))
 
-        # Episodes
-        if 'episodenumberstart' in groupnames:
-            if m.group('episodenumberend'):
-                start = int(m.group('episodenumberstart'))
-                end = int(m.group('episodenumberend'))
-                if start > end:
-                    start, end = end, start
-                series['episodes'] = list(range(start, end + 1))
-            else:
-                series['episodes'] = [int(m.group('episodenumberstart')), ]
-        elif 'episodenumber' in groupnames:
-            series['episodes'] = [int(m.group('episodenumber')), ]
+            # Episodes
+            if 'episodenumberstart' in groupnames:
+                if m.group('episodenumberend'):
+                    start = int(m.group('episodenumberstart'))
+                    end = int(m.group('episodenumberend'))
+                    if start > end:
+                        start, end = end, start
+                    series['episodes'] = list(range(start, end + 1))
+                else:
+                    series['episodes'] = [int(m.group('episodenumberstart')), ]
+            elif 'episodenumber' in groupnames:
+                series['episodes'] = [int(m.group('episodenumber')), ]
 
         found['episode'] = series
         break
@@ -527,22 +533,30 @@ class CommandResolve(Command):
                 if 'episode' in parsed:
                     episode = parsed['episode']
                     season = episode['season']
-                    fepisode = episode['episodes'][0]
+                    fepisode = (episode['episodes'][0]
+                                if episode['episodes']
+                                else None)
 
                     # Define the prefix that characterize the show
                     show_prefix = '"{}"'.format(episode['show'].lower())
 
                     # And search if we find the first episode
                     for m in medias:
-                        if m['MovieKind'] != 'episode' or \
-                                int(m['SeriesSeason']) != season or \
-                                int(m['SeriesEpisode']) != fepisode or \
-                                not m['MovieName'].lower().startswith(
-                                    show_prefix):
+                        if m['MovieKind'] != 'episode':
                             continue
 
-                        media = m
-                        break
+                        if season is None:
+                            if int(m['SeriesSeason']) != 1:
+                                continue
+                        elif int(m['SeriesSeason']) != season:
+                            continue
+
+                        if int(m['SeriesEpisode']) != fepisode:
+                            continue
+
+                        if m['MovieName'].lower().startswith(show_prefix):
+                            media = m
+                            break
 
                     # If we reach here and still haven't got the episode, try
                     # to see if we had maybe a typo in the name
