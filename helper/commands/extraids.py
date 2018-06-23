@@ -87,8 +87,8 @@ def resolve_episode_ids(series, season, episode, year=None, imdbid=None):
         ids['tvdb'] = tvdb_episode['id']
     except Exception as e:
         LOGGER.debug(e)
-        LOGGER.warning('Unable to find series {}, season {}, '
-                       'episode {} on TheTVDB'.format(
+        LOGGER.warning(u'Unable to find series {}, season {}, '
+                       u'episode {} on TheTVDB'.format(
                            series, season, episode))
 
     ##################################################################
