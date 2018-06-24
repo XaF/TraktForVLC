@@ -127,6 +127,17 @@ before_install:
   - vlc --version
 
 install:
+  # Run the python tests
+  - pipenv run nosetests
+      -vv
+      --where tests/
+      --exe
+      --with-coverage
+      --cover-package helper
+      --cover-package trakt_helper
+      --cover-html
+      --cover-branches
+      --cover-erase
   # Set the version in the Python and LUA scripts
   - pipenv run ./version.py set --version=${TRAKT_VERSION}
   # Compile the Lua scripts

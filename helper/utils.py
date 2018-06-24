@@ -29,7 +29,7 @@ import os
 import platform
 import sys
 
-if platform.system() != 'Windows':
+if platform.system() != 'Windows':  # pragma: no cover
     import pwd
 
 LOGGER = logging.getLogger(__name__)
@@ -206,20 +206,22 @@ def get_os_config(system=None, config=None, lua=None):
             'lua': lua,
         }
 
-    raise RuntimeError('Unsupported operating system: {}'.format(system))
+    raise RuntimeError('Unsupported operating system: {}'.format(opsys))
 
 
 ##############################################################################
 # To prompt the user for a yes-no answer
 def ask_yes_no(prompt):
+    result = None
     try:
-        while 'the feeble-minded user has to provide an answer':
+        while result is None:
             reply = str(raw_input(
                 '{} [y/n] '.format(prompt))).lower().strip()
             if reply in ['y', 'yes', '1']:
-                return True
+                result = True
             elif reply in ['n', 'no', '0']:
-                return False
+                result = False
     except (KeyboardInterrupt, EOFError):
         print('Installation aborted by signal.')
-        return
+
+    return result

@@ -96,5 +96,13 @@ def main(argv=None):
     sys.exit(exit_code)
 
 
-if __name__ == '__main__':
-    main()
+##############################################################################
+# Function to initialize the script as a binary
+def init():
+    if __name__ == '__main__':
+        main()
+
+
+##############################################################################
+# Run the init function
+init()

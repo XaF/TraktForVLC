@@ -8,6 +8,10 @@ name = "pypi"
 [dev-packages]
 
 pyinstaller = "*"
+testfixtures = "*"
+nose = "*"
+coverage = "*"
+mock = "*"
 
 
 [packages]

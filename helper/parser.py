@@ -234,7 +234,7 @@ def parse_args(args=None, preparse=False, parser_type=argparse.ArgumentParser):
 
         # Else, check if the object is actually a module
         m = getattr(helper.commands, mname)
-        if not isinstance(m, types.ModuleType):
+        if not isinstance(m, types.ModuleType):  # pragma: no cover
             continue
 
         # If it was a module, go through the objects in it
@@ -252,7 +252,7 @@ def parse_args(args=None, preparse=False, parser_type=argparse.ArgumentParser):
 
             # Finally, check if the command and description are defined for
             # the module
-            if c.command is None or c.description is None:
+            if c.command is None or c.description is None:  # pragma: no cover
                 continue
 
             command_parser = commands.add_parser(

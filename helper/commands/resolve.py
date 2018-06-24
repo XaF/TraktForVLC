@@ -480,481 +480,499 @@ class CommandResolve(Command):
                  'Trakt.tv',
         )
 
+    def insert_hash(self, media, ratio, oshash, size, duration,
+                    meta, mediatype):
+        """
+        To insert a new hash into the OpenSubtitles database
+        """
+        if not oshash or (mediatype == 'movie' and ratio < 70.):
+            return
+
+        LOGGER.info('Sending movie hash information to opensubtitles')
+
+        # Insert the movie hash if possible!
+        media_duration = (
+            duration * 1000.0
+            if duration
+            else media['base']['runningTimeInMinutes'] * 60. * 1000.
+        )
+        try:
+            res = OpenSubtitlesAPI.insert_hash(
+                [
+                    {
+                        'moviehash': oshash,
+                        'moviebytesize': size,
+                        'imdbid': media['base']['id'][9:-1],
+                        'movietimems': media_duration,
+                        'moviefilename': meta['filename'],
+                    },
+                ]
+            )
+        except Exception as e:
+            raise ResolveException(e)
+
+        LOGGER.info(res)
+        if res['status'] != '200 OK':
+            title = media['base']['title']
+            if media['base']['titleType'] == 'tvEpisode':
+                title = '{} - S{:02d}E{:02d} - {}'.format(
+                    media['base']['parentTitle']['title'],
+                    media['base']['season'],
+                    media['base']['episode'],
+                    title,
+                )
+            LOGGER.info('Unable to submit hash for \'{0}\': {1}'.format(
+                title, res['status']))
+        elif oshash in res['data']['accepted_moviehashes']:
+            LOGGER.info('New hash submitted and accepted')
+        else:
+            LOGGER.info('New hash submitted but not accepted')
+
+    def search_hash(self, oshash, parsed):
+        """
+        To search by hash
+        """
+        if not oshash:
+            return
+
+        LOGGER.info('Searching media using hash research')
+
+        # Search for the files corresponding to this hash
+        try:
+            medias = OpenSubtitlesAPI.check_hash([oshash, ])
+        except Exception as e:
+            raise ResolveException(e)
+
+        # If the hash is not in the results
+        medias = medias['data'] if 'data' in medias else []
+        if oshash not in medias:
+            return
+
+        # We're only interested in that hash
+        medias = medias[oshash]
+
+        if len(medias) == 1:
+            # There is only one, so might as well be that one!
+            media = medias[0]
+
+            # Unless it's not the same type...
+            if media['MovieKind'] not in parsed:
+                return
+        else:
+            # Initialize media to None in case we don't find anything
+            media = None
+
+            # Search differently if it's an episode or a movie
+            if 'episode' in parsed:
+                episode = parsed['episode']
+                season = episode['season']
+                fepisode = (episode['episodes'][0]
+                            if episode['episodes']
+                            else None)
+
+                # Define the prefix that characterize the show
+                show_prefix = '"{}"'.format(episode['show'].lower())
+
+                # And search if we find the first episode
+                for m in medias:
+                    if m['MovieKind'] != 'episode':
+                        continue
+
+                    if season is None:
+                        if int(m['SeriesSeason']) != 1:
+                            continue
+                    elif int(m['SeriesSeason']) != season:
+                        continue
+
+                    if int(m['SeriesEpisode']) != fepisode:
+                        continue
+
+                    if m['MovieName'].lower().startswith(show_prefix):
+                        media = m
+                        break
+
+                # If we reach here and still haven't got the episode, try
+                # to see if we had maybe a typo in the name
+                if not media:
+                    def weight_episode(x):
+                        return fuzzywuzzy.fuzz.ratio(
+                            parsed['episode']['show'], re.sub(
+                                '^\"([^"]*)\" .*$', '\\1', x['MovieName']))
+
+                    # Filter only the episodes that can match with the
+                    # information we got
+                    episodes = [
+                        m for m in medias
+                        if m['MovieKind'] == 'episode' and
+                        ((season is not None and
+                          int(m['SeriesSeason']) == season) or
+                         (season is None and
+                          int(m['SeriesSeason']) == 1)) and
+                        int(m['SeriesEpisode']) == fepisode
+                    ]
+
+                    if episodes:
+                        # Use fuzzywuzzy to get the closest show name
+                        closest = max(
+                            episodes,
+                            key=weight_episode,
+                        )
+                        if weight_episode(closest) >= .8:
+                            media = closest
+
+            if not media and 'movie' in parsed:
+                movie = parsed['movie']
+
+                media_name = movie.get('title')
+
+                # Filter only the movies
+                movies = [
+                    m for m in medias
+                    if m['MovieKind'] == 'movie'
+                ]
+
+                if movies:
+                    # Use fuzzywuzzy to get the closest movie name
+                    media = max(
+                        movies,
+                        key=lambda x: fuzzywuzzy.fuzz.ratio(
+                            media_name, x['MovieName'])
+                    )
+
+        # If when reaching here we don't have the media, return None
+        if not media:
+            return
+
+        # Else, we will need imdb for getting more detailed information on
+        # the media; we'll exclude episodes if we know the media is a movie
+        imdb = imdbpie.Imdb(
+            exclude_episodes=(media['MovieKind'] == 'movie'),
+        )
+
+        try:
+            result = imdb.get_title('tt{}'.format(media['MovieImdbID']))
+        except Exception as e:
+            raise ResolveException(e)
+
+        # Find the media
+        return imdb, result
+
+    def weight_movie_by_duration(self, duration):
+        """
+        Returns a function that allows to weight the movies by closeness
+        to the given duration
+        """
+        def weight_movie(movie):
+            if not duration and duration != 0:
+                return sys.maxint
+
+            rt = movie['details']['base'].get('runningTimeInMinutes')
+            if rt is None:
+                return sys.maxint
+
+            movie['duration_closeness'] = abs(rt * 60. - duration)
+            return movie['duration_closeness']
+
+        return weight_movie
+
+    def search_text_movie(self, parsed_movie, duration=None):
+        """
+        To search by text for a movie
+        """
+        LOGGER.info('Searching media using text research on movie')
+
+        # Initialize the imdb object to perform the research
+        imdb = imdbpie.Imdb(
+            exclude_episodes=True,
+        )
+
+        # Use imdb to search for the movie
+        try:
+            search = imdb.search_for_title(parsed_movie['title'])
+        except Exception as e:
+            raise ResolveException(e)
+
+        # Filter out everything that is not starting with 'tt', as only
+        # IMDB IDs starting with 'tt' represent movies/episodes, and
+        # filter out everything considered as a TV series
+        search = [s for s in search
+                  if s['imdb_id'].startswith('tt') and
+                  s['type'] != 'TV series']
+        if not search:
+            return
+
+        year_found = False
+        for r in search:
+            r['fuzz_ratio'] = fuzzywuzzy.fuzz.ratio(
+                parsed_movie['title'], r['title'])
+            if parsed_movie['year'] and \
+                    not year_found and \
+                    r['year'] == parsed_movie['year']:
+                year_found = True
+
+        if year_found:
+            search = [r for r in search if r['year'] == parsed_movie['year']]
+
+        if not duration:
+            # If we don't have the movie duration, we won't be able to use
+            # it to discriminate the movies, so just use the highest ratio
+            max_ratio = max(r['fuzz_ratio'] for r in search)
+            search = [r for r in search if r['fuzz_ratio'] == max_ratio]
+
+            # Even if there is multiple with the highest ratio, only
+            # return one
+            return imdb, imdb.get_title(search[0]['imdb_id'])
+
+        # If we have the movie duration, we can use it to make the
+        # research more precise, so we can be more gentle on the ratio
+        sum_ratio = sum(r['fuzz_ratio'] for r in search)
+        mean_ratio = sum_ratio / float(len(search))
+        std_dev_ratio = math.sqrt(
+            sum([
+                math.pow(r['fuzz_ratio'] - mean_ratio, 2)
+                for r in search
+            ]) / float(len(search))
+        )
+
+        # Select only the titles over a given threshold
+        threshold = min(mean_ratio + std_dev_ratio,
+                        max(r['fuzz_ratio'] for r in search))
+        search = [r for r in search if r['fuzz_ratio'] >= threshold]
+
+        # Now we need to get more information to identify precisely
+        # the movie
+        for r in search:
+            r['details'] = imdb.get_title(r['imdb_id'])
+
+        # Try to get the closest movie using the movie duration
+        # if available
+        closest = min(search, key=self.weight_movie_by_duration(duration))
+
+        # If the closest still has a duration difference with the expected
+        # one that is more than half of the expected duration, it is
+        # probably not the right one!
+        closeness = closest.get('duration_closeness', sys.maxint)
+        if duration and closeness > (duration / 2.):
+            return
+
+        # Return the imdb information of the closest movie found
+        return imdb, closest['details'], closest['fuzz_ratio']
+
+    def search_text_episode(self, parsed_episode, trakt_api_key=None):
+        """
+        To search by text for an episode
+        """
+        LOGGER.info('Searching media using text research on episode')
+
+        # To allow to search on the tvdb
+        tvdb = tvdb_api.Tvdb(
+            cache=False,
+            language='en',
+        )
+
+        # Perform the search, if nothing is found, there's a problem...
+        try:
+            tvdb_series = tvdb.search(parsed_episode['show'])
+        except Exception as e:
+            raise ResolveException(e)
+
+        if not tvdb_series:
+            return
+
+        tvdb_series = tvdb[tvdb_series[0]['seriesName']]
+        tvdb_episode = tvdb_series[parsed_episode['season']][
+            parsed_episode['episodes'][0]]
+
+        # Initialize the imdb object to perform the research
+        imdb = imdbpie.Imdb(
+            exclude_episodes=False,
+        )
+
+        # Initialize the series imdb id to None so we know if the TVDB
+        # id was at least sufficient to determine the series we're
+        # watching
+        series_imdbid = None
+
+        # Try and get the information using the TVDB id we just found
+        trakt_result = None
+        if trakt_api_key:
+            trakt_session = requests.Session()
+            trakt_session.headers.update({
+                'Content-Type': 'application/json',
+                'trakt-api-version': '2',
+                'trakt-api-key': trakt_api_key,
+            })
+            resp = trakt_session.get(
+                'https://api.trakt.tv/search/tvdb/{}?type=episode'.format(
+                    tvdb_episode['id']),
+            )
+
+            # If we found the result from Trakt, use it!
+            if resp.status_code == requests.codes.ok:
+                trakt_result = resp.json()[0]
+                if trakt_result['episode']['ids']['imdb']:
+                    return imdb, imdb.get_title(
+                        trakt_result['episode']['ids']['imdb'])
+                if trakt_result['show']['ids']['imdb']:
+                    series_imdbid = trakt_result['show']['ids']['imdb']
+
+        if not series_imdbid:
+            # Use imdb to search for the series using its name or aliases
+            search = None
+            for seriesName in [tvdb_series['seriesName'], ] + \
+                    tvdb_series['aliases']:
+                try:
+                    search = imdb.search_for_title(seriesName)
+                except Exception as e:
+                    raise ResolveException(e)
+
+                # Filter the results by name and type
+                search = [
+                    s for s in search
+                    if s['type'] == 'TV series' and
+                    (s['title'] == seriesName or
+                     '{title} ({year})'.format(**s) == seriesName)
+                ]
+
+                # If there is still more than one, filter by year
+                if len(search) > 1:
+                    search = [
+                        s for s in search
+                        if s['year'] == tvdb_series['firstAired'][:4]
+                    ]
+
+                # If we have a series, we can stop there!
+                if search:
+                    break
+
+            # If we did not find anything that matches
+            if not search:
+                return
+
+            # We found the series IMDb id
+            series_imdbid = search[0]['imdb_id']
+
+        # Get the series' seasons and episodes
+        imdb_series = imdb.get_title_episodes(series_imdbid)
+        for imdb_season in imdb_series['seasons']:
+            if 'season' not in imdb_season or \
+                    imdb_season['season'] != parsed_episode['season']:
+                continue
+
+            for imdb_episode in imdb_season['episodes']:
+                if 'episode' not in imdb_episode or \
+                        imdb_episode['episode'] != parsed_episode[
+                            'episodes'][0]:
+                    continue
+
+                # id is using format /title/ttXXXXXX/
+                return imdb, imdb.get_title(imdb_episode['id'][7:-1])
+
+        # We did not find the series, but if we have extra ids, try to
+        # fake it!
+        if trakt_result:
+            # Add as many episodes as needed to compute the information for
+            numbers = [trakt_result['episode']['number'], ]
+            while len(numbers) < len(parsed_episode['episodes']):
+                numbers.append(numbers[-1] + 1)
+
+            # Prepare the show information
+            parentTitle = {
+                'id': (
+                    '/title/{}/'.format(
+                        trakt_result['show']['ids']['imdb'])
+                    if trakt_result['show']['ids'].get('imdb') else None
+                ),
+                'year': trakt_result['show']['year'],
+                'title': trakt_result['show']['title'],
+                'titleType': 'tvSeries',
+            }
+            parentTitle.update({
+                '{}id'.format(k): v for k, v
+                in trakt_result['show']['ids'].items()
+                if v is not None
+            })
+
+            media_list = []
+            for epnum in numbers:
+                # Query for the episode information directly from Trakt
+                resp = trakt_session.get(
+                    'https://api.trakt.tv/shows/{}/'
+                    'seasons/{}/episodes/{}?extended=full'.format(
+                        trakt_result['show']['ids']['slug'],
+                        trakt_result['episode']['season'],
+                        epnum,
+                    ),
+                )
+
+                # If there was an error, raise an exception
+                resp.raise_for_status()
+
+                # Else, get the JSON data
+                respj = resp.json()
+
+                # Prepare the fake imdb media output
+                media = {
+                    'base': {
+                        'id': (
+                            '/title/{}/'.format(respj['ids']['imdb'])
+                            if respj['ids'].get('imdb') else None
+                        ),
+                        'parentTitle': parentTitle,
+                        'year': dateutil.parser.parse(
+                            respj['first_aired']).year,
+                        'episode': respj['number'],
+                        'season': respj['season'],
+                        'title': respj['title'],
+                        'seriesStartYear': parentTitle['year'],
+                        'runningTimeInMinutes': respj.get('runtime'),
+                    },
+                }
+                media['base'].update({
+                    '{}id'.format(k): v
+                    for k, v in respj['ids'].items()
+                    if v is not None
+                })
+
+                # And add it to the list
+                media_list.append(media)
+
+            # Return the list we just build
+            return CommandOutput(data=media_list)
+
+        # Not found
+        return
+
+    def search_text(self, parsed, duration=None, trakt_api_key=None):
+        """
+        To search by text
+        """
+        search = None
+        if 'episode' in parsed:
+            try:
+                search = self.search_text_episode(parsed['episode'],
+                                                  trakt_api_key)
+            except ResolveException as e:
+                LOGGER.warning(
+                    'Exception when trying to search manually '
+                    'for an episode: {}'.format(e))
+
+        if not search and 'movie' in parsed:
+            try:
+                search = self.search_text_movie(parsed['movie'], duration)
+            except ResolveException as e:
+                LOGGER.warning(
+                    'Exception when trying to search manually '
+                    'for a movie: {}'.format(e))
+
+        return search
+
     def run(self, meta, oshash, size, duration, trakt_api_key):
         # Prepare the parameters
         meta = json.loads(meta)
 
         # Parse the filename to get more information
         parsed = parse_filename(meta['filename'])
-
-        ######################################################################
-        # Internal function to search by hash
-        def search_hash():
-            if not oshash:
-                return
-
-            LOGGER.info('Searching media using hash research')
-
-            # Search for the files corresponding to this hash
-            try:
-                medias = OpenSubtitlesAPI.check_hash([oshash, ])
-            except Exception as e:
-                raise ResolveException(e)
-
-            # If the hash is not in the results
-            medias = medias['data'] if 'data' in medias else []
-            if oshash not in medias:
-                return
-
-            # We're only interested in that hash
-            medias = medias[oshash]
-
-            if len(medias) == 1:
-                # There is only one, so might as well be that one!
-                media = medias[0]
-
-                # Unless it's not the same type...
-                if media['MovieKind'] not in parsed:
-                    return
-            else:
-                # Initialize media to None in case we don't find anything
-                media = None
-
-                # Search differently if it's an episode or a movie
-                if 'episode' in parsed:
-                    episode = parsed['episode']
-                    season = episode['season']
-                    fepisode = (episode['episodes'][0]
-                                if episode['episodes']
-                                else None)
-
-                    # Define the prefix that characterize the show
-                    show_prefix = '"{}"'.format(episode['show'].lower())
-
-                    # And search if we find the first episode
-                    for m in medias:
-                        if m['MovieKind'] != 'episode':
-                            continue
-
-                        if season is None:
-                            if int(m['SeriesSeason']) != 1:
-                                continue
-                        elif int(m['SeriesSeason']) != season:
-                            continue
-
-                        if int(m['SeriesEpisode']) != fepisode:
-                            continue
-
-                        if m['MovieName'].lower().startswith(show_prefix):
-                            media = m
-                            break
-
-                    # If we reach here and still haven't got the episode, try
-                    # to see if we had maybe a typo in the name
-                    if not media:
-                        def weight_episode(x):
-                            return fuzzywuzzy.fuzz.ratio(
-                                parsed['episode']['show'], re.sub(
-                                    '^\"([^"]*)\" .*$', '\\1', x['MovieName']))
-
-                        # Filter only the episodes that can match with the
-                        # information we got
-                        episodes = [
-                            m for m in medias
-                            if m['MovieKind'] == 'episode' and
-                            int(m['SeriesSeason']) == season and
-                            int(m['SeriesEpisode']) == fepisode
-                        ]
-
-                        if episodes:
-                            # Use fuzzywuzzy to get the closest show name
-                            closest = max(
-                                episodes,
-                                key=weight_episode,
-                            )
-                            if weight_episode(closest) >= .8:
-                                media = closest
-
-                if not media and 'movie' in parsed:
-                    movie = parsed['movie']
-
-                    media_name = movie.get('title')
-
-                    # Filter only the movies
-                    movies = [
-                        m for m in medias
-                        if m['MovieKind'] == 'movie'
-                    ]
-
-                    if movies:
-                        # Use fuzzywuzzy to get the closest movie name
-                        media = max(
-                            movies,
-                            key=lambda x: fuzzywuzzy.fuzz.ratio(
-                                media_name, x['MovieName'])
-                        )
-
-            # If when reaching here we don't have the media, return None
-            if not media:
-                return
-
-            # Else, we will need imdb for getting more detailed information on
-            # the media; we'll exclude episodes if we know the media is a movie
-            imdb = imdbpie.Imdb(
-                exclude_episodes=(media['MovieKind'] == 'movie'),
-            )
-
-            try:
-                result = imdb.get_title('tt{}'.format(media['MovieImdbID']))
-            except Exception as e:
-                raise ResolveException(e)
-
-            # Find the media
-            return imdb, result
-
-        ######################################################################
-        # Internal function to search by text for a movie
-        def search_text_movie():
-            LOGGER.info('Searching media using text research on movie')
-            movie = parsed['movie']
-
-            # Initialize the imdb object to perform the research
-            imdb = imdbpie.Imdb(
-                exclude_episodes=True,
-            )
-
-            # Use imdb to search for the movie
-            try:
-                search = imdb.search_for_title(movie['title'])
-            except Exception as e:
-                raise ResolveException(e)
-
-            # Filter out everything that is not starting with 'tt', as only
-            # IMDB IDs starting with 'tt' represent movies/episodes, and
-            # filter out everything considered as a TV series
-            search = [s for s in search
-                      if s['imdb_id'].startswith('tt') and
-                      s['type'] != 'TV series']
-            if not search:
-                return
-
-            year_found = False
-            for r in search:
-                r['fuzz_ratio'] = fuzzywuzzy.fuzz.ratio(
-                    movie['title'], r['title'])
-                if movie['year'] and \
-                        not year_found and \
-                        r['year'] == movie['year']:
-                    year_found = True
-
-            if year_found:
-                search = [r for r in search if r['year'] == movie['year']]
-
-            if not duration:
-                # If we don't have the movie duration, we won't be able to use
-                # it to discriminate the movies, so just use the highest ratio
-                max_ratio = max(r['fuzz_ratio'] for r in search)
-                search = [r for r in search if r['fuzz_ratio'] == max_ratio]
-
-                # Even if there is multiple with the highest ratio, only
-                # return one
-                return imdb, imdb.get_title(search[0]['imdb_id'])
-
-            # If we have the movie duration, we can use it to make the
-            # research more precise, so we can be more gentle on the ratio
-            sum_ratio = sum(r['fuzz_ratio'] for r in search)
-            mean_ratio = sum_ratio / float(len(search))
-            std_dev_ratio = math.sqrt(
-                sum([
-                    math.pow(r['fuzz_ratio'] - mean_ratio, 2)
-                    for r in search
-                ]) / float(len(search))
-            )
-
-            # Select only the titles over a given threshold
-            threshold = min(mean_ratio + std_dev_ratio,
-                            max(r['fuzz_ratio'] for r in search))
-            search = [r for r in search if r['fuzz_ratio'] >= threshold]
-
-            # Now we need to get more information to identify precisely
-            # the movie
-            for r in search:
-                r['details'] = imdb.get_title(r['imdb_id'])
-
-            # Try to get the closest movie using the movie duration
-            # if available
-            def weight_movie_by_duration(movie):
-                if not duration:
-                    return sys.maxint
-
-                rt = movie['details']['base'].get('runningTimeInMinutes')
-                if rt is None:
-                    return sys.maxint
-
-                movie['duration_closeness'] = abs(rt * 60. - duration)
-                return movie['duration_closeness']
-
-            closest = min(search, key=weight_movie_by_duration,)
-
-            # If the closest still has a duration difference with the expected
-            # one that is more than half of the expected duration, it is
-            # probably not the right one!
-            if duration and closest['duration_closeness'] > (duration / 2.):
-                return
-
-            # Return the imdb information of the closest movie found
-            return imdb, closest['details'], closest['fuzz_ratio']
-
-        ######################################################################
-        # Internal function to search by text for an episode
-        def search_text_episode():
-            LOGGER.info('Searching media using text research on episode')
-            ep = parsed['episode']
-
-            # To allow to search on the tvdb
-            tvdb = tvdb_api.Tvdb(
-                cache=False,
-                language='en',
-            )
-
-            # Perform the search, if nothing is found, there's a problem...
-            try:
-                tvdb_series = tvdb.search(ep['show'])
-            except Exception as e:
-                raise ResolveException(e)
-
-            if not tvdb_series:
-                return
-
-            tvdb_series = tvdb[tvdb_series[0]['seriesName']]
-            tvdb_episode = tvdb_series[ep['season']][ep['episodes'][0]]
-
-            # Initialize the imdb object to perform the research
-            imdb = imdbpie.Imdb(
-                exclude_episodes=False,
-            )
-
-            # Initialize the series imdb id to None so we know if the TVDB
-            # id was at least sufficient to determine the series we're
-            # watching
-            series_imdbid = None
-
-            # Try and get the information using the TVDB id we just found
-            trakt_result = None
-            if trakt_api_key:
-                trakt_session = requests.Session()
-                trakt_session.headers.update({
-                    'Content-Type': 'application/json',
-                    'trakt-api-version': '2',
-                    'trakt-api-key': trakt_api_key,
-                })
-                resp = trakt_session.get(
-                    'https://api.trakt.tv/search/tvdb/{}?type=episode'.format(
-                        tvdb_episode['id']),
-                )
-
-                # If we found the result from Trakt, use it!
-                if resp.status_code == requests.codes.ok:
-                    trakt_result = resp.json()[0]
-                    if trakt_result['episode']['ids']['imdb']:
-                        return imdb, imdb.get_title(
-                            trakt_result['episode']['ids']['imdb'])
-                    if trakt_result['show']['ids']['imdb']:
-                        series_imdbid = trakt_result['show']['ids']['imdb']
-
-            if not series_imdbid:
-                # Use imdb to search for the series using its name or aliases
-                search = None
-                for seriesName in [tvdb_series['seriesName'], ] + \
-                        tvdb_series['aliases']:
-                    try:
-                        search = imdb.search_for_title(seriesName)
-                    except Exception as e:
-                        raise ResolveException(e)
-
-                    # Filter the results by name and type
-                    search = [
-                        s for s in search
-                        if s['type'] == 'TV series' and
-                        (s['title'] == seriesName or
-                         '{title} ({year})'.format(**s) == seriesName)
-                    ]
-
-                    # If there is still more than one, filter by year
-                    if len(search) > 1:
-                        search = [
-                            s for s in search
-                            if s['year'] == tvdb_series['firstAired'][:4]
-                        ]
-
-                    # If we have a series, we can stop there!
-                    if search:
-                        break
-
-                # If we did not find anything that matches
-                if not search:
-                    return
-
-                # We found the series IMDb id
-                series_imdbid = search[0]['imdb_id']
-
-            # Get the series' seasons and episodes
-            imdb_series = imdb.get_title_episodes(series_imdbid)
-            for imdb_season in imdb_series['seasons']:
-                if 'season' not in imdb_season or \
-                        imdb_season['season'] != ep['season']:
-                    continue
-
-                for imdb_episode in imdb_season['episodes']:
-                    if 'episode' not in imdb_episode or \
-                            imdb_episode['episode'] != ep['episodes'][0]:
-                        continue
-
-                    # id is using format /title/ttXXXXXX/
-                    return imdb, imdb.get_title(imdb_episode['id'][7:-1])
-
-            # We did not find the series, but if we have extra ids, try to
-            # fake it!
-            if trakt_result:
-                # Add as many episodes as needed to compute the information for
-                numbers = [trakt_result['episode']['number'], ]
-                while len(numbers) < len(parsed['episode']['episodes']):
-                    numbers.append(numbers[-1] + 1)
-
-                # Prepare the show information
-                parentTitle = {
-                    'id': (
-                        '/title/{}/'.format(
-                            trakt_result['show']['ids']['imdb'])
-                        if trakt_result['show']['ids'].get('imdb') else None
-                    ),
-                    'year': trakt_result['show']['year'],
-                    'title': trakt_result['show']['title'],
-                    'titleType': 'tvSeries',
-                }
-                parentTitle.update({
-                    '{}id'.format(k): v for k, v
-                    in trakt_result['show']['ids'].items()
-                    if v is not None
-                })
-
-                media_list = []
-                for epnum in numbers:
-                    # Query for the episode information directly from Trakt
-                    resp = trakt_session.get(
-                        'https://api.trakt.tv/shows/{}/'
-                        'seasons/{}/episodes/{}?extended=full'.format(
-                            trakt_result['show']['ids']['slug'],
-                            trakt_result['episode']['season'],
-                            epnum,
-                        ),
-                    )
-
-                    # If there was an error, raise an exception
-                    resp.raise_for_status()
-
-                    # Else, get the JSON data
-                    respj = resp.json()
-
-                    # Prepare the fake imdb media output
-                    media = {
-                        'base': {
-                            'id': (
-                                '/title/{}/'.format(respj['ids']['imdb'])
-                                if respj['ids'].get('imdb') else None
-                            ),
-                            'parentTitle': parentTitle,
-                            'year': dateutil.parser.parse(
-                                respj['first_aired']).year,
-                            'episode': respj['number'],
-                            'season': respj['season'],
-                            'title': respj['title'],
-                            'seriesStartYear': parentTitle['year'],
-                            'runningTimeInMinutes': respj.get('runtime'),
-                        },
-                    }
-                    media['base'].update({
-                        '{}id'.format(k): v
-                        for k, v in respj['ids'].items()
-                        if v is not None
-                    })
-
-                    # And add it to the list
-                    media_list.append(media)
-
-                # Return the list we just build
-                return CommandOutput(data=media_list)
-
-            # Not found
-            return
-
-        ######################################################################
-        # Internal function to search by text
-        def search_text():
-            search = None
-            if 'episode' in parsed:
-                try:
-                    search = search_text_episode()
-                except ResolveException as e:
-                    LOGGER.warning(
-                        'Exception when trying to search manually '
-                        'for an episode: {}'.format(e))
-
-            if not search and 'movie' in parsed:
-                try:
-                    search = search_text_movie()
-                except ResolveException as e:
-                    LOGGER.warning(
-                        'Exception when trying to search manually '
-                        'for a movie: {}'.format(e))
-
-            return search
-
-        ######################################################################
-        # Internal function to insert a hash
-        def insert_hash(media, ratio):
-            if not oshash or (parsed['type'] == 'movie' and ratio < 70.):
-                return
-
-            LOGGER.info('Sending movie hash information to opensubtitles')
-
-            # Insert the movie hash if possible!
-            media_duration = (
-                duration * 1000.0
-                if duration
-                else media['base']['runningTimeInMinutes'] * 60. * 1000.
-            )
-            try:
-                res = OpenSubtitlesAPI.insert_hash(
-                    [
-                        {
-                            'moviehash': oshash,
-                            'moviebytesize': size,
-                            'imdbid': media['base']['id'][9:-1],
-                            'movietimems': media_duration,
-                            'moviefilename': meta['filename'],
-                        },
-                    ]
-                )
-            except Exception as e:
-                raise ResolveException(e)
-
-            LOGGER.info(res)
-            if res['status'] != '200 OK':
-                title = media['base']['title']
-                if media['base']['titleType'] == 'tvEpisode':
-                    title = '{} - S{:02d}E{:02d} - {}'.format(
-                        media['base']['parentTitle']['title'],
-                        media['base']['season'],
-                        media['base']['episode'],
-                        title,
-                    )
-                LOGGER.info('Unable to submit hash for \'{0}\': {1}'.format(
-                    title, res['status']))
-            elif oshash in res['data']['accepted_moviehashes']:
-                LOGGER.info('New hash submitted and accepted')
-            else:
-                LOGGER.info('New hash submitted but not accepted')
 
         ######################################################################
         # Logic of that function
@@ -965,7 +983,7 @@ class CommandResolve(Command):
 
         # First search using the hash
         try:
-            media = search_hash()
+            media = self.search_hash(oshash, parsed)
         except ResolveException as e:
             LOGGER.warning(
                 'Exception when trying to resolve the hash: {}'.format(e))
@@ -974,7 +992,7 @@ class CommandResolve(Command):
         # and the file name
         if not media:
             should_insert_hash = True
-            media = search_text()
+            media = self.search_text(parsed, duration, trakt_api_key)
 
         # If still not found, return an empty list
         if not media:
@@ -1000,7 +1018,14 @@ class CommandResolve(Command):
         # allow for matches
         if oshash and should_insert_hash:
             try:
-                insert_hash(media, ratio)
+                self.insert_hash(
+                    media=media,
+                    ratio=ratio,
+                    oshash=oshash,
+                    size=size,
+                    duration=duration,
+                    meta=meta,
+                    mediatype=parsed['type'])
             except ResolveException as e:
                 LOGGER.warning(
                     'Exception when trying to insert the hash: {}'.format(e))
