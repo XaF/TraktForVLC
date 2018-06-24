@@ -23,6 +23,7 @@ from __future__ import print_function
 import contextlib
 import distutils.spawn
 import glob
+import json
 import logging
 import os
 import platform
@@ -75,6 +76,35 @@ class Command(object):
 
     def run(self, *args, **kwargs):
         pass
+
+
+##############################################################################
+# Class representing a command output
+class CommandOutput(object):
+    def __init__(self, data=None, is_json=True, exit_code=0):
+        self._data = data
+        self._is_json = is_json
+        self._exit_code = exit_code
+
+    @property
+    def exit_code(self):
+        return self._exit_code
+
+    @property
+    def data(self):
+        return self._data
+
+    def print(self):
+        data = self._data
+        if not data:
+            return
+
+        if self._is_json:
+            data = json.dumps(data, sort_keys=True,
+                              indent=4, separators=(',', ': '),
+                              ensure_ascii=False)
+
+        print(data)
 
 
 ##############################################################################

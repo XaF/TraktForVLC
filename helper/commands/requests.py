@@ -29,6 +29,7 @@ import requests
 
 from helper.utils import (
     Command,
+    CommandOutput,
 )
 
 LOGGER = logging.getLogger(__name__)
@@ -124,6 +125,5 @@ class CommandRequests(Command):
             pass
 
         ######################################################################
-        # Print the JSON dump of the result
-        print(json.dumps(result, sort_keys=True,
-                         indent=4, separators=(',', ': ')))
+        # Return the result
+        return CommandOutput(data=result)

@@ -36,6 +36,9 @@ from helper.version import *  # noqa: F401, F403
 from helper.parser import (
     parse_args,
 )
+from helper.utils import (
+    CommandOutput,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -43,14 +46,16 @@ LOGGER = logging.getLogger(__name__)
 ##############################################################################
 # Main method that will parse the command line arguments and run the function
 # to perform the appropriate actions
-def main():
+def main(argv=None):
     # If no command line arguments, defaults to installation
-    if len(sys.argv) == 1:
+    if (argv is None and len(sys.argv) == 1) or \
+            (argv is not None and len(argv) == 0):
+        argv = []
         if platform.system() == 'Windows':
-            sys.argv.append('--keep-alive')
-        sys.argv.append('install')
+            argv.append('--keep-alive')
+        argv.append('install')
 
-    args, action, params = parse_args()
+    args, action, params = parse_args(argv)
 
     ##########################################################################
     # Prepare the logger
@@ -72,13 +77,17 @@ def main():
     ##########################################################################
     # Call the function
     try:
-        exit_code = action(**params)
+        command_output = action(**params)
     except Exception as e:
         LOGGER.exception(e, exc_info=True)
         raise
 
-    if exit_code is None:
-        exit_code = 0
+    exit_code = 0
+    if isinstance(command_output, CommandOutput):
+        exit_code = command_output.exit_code
+        command_output.print()
+    elif isinstance(command_output, int):
+        exit_code = command_output
 
     if hasattr(args, 'keep_alive') and args.keep_alive:
         print('Press a key to continue.')

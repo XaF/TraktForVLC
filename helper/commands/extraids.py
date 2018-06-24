@@ -24,13 +24,13 @@ from __future__ import (
     print_function,
 )
 import argparse
-import json
 import logging
 import tmdbsimple
 import tvdb_api
 
 from helper.utils import (
     Command,
+    CommandOutput,
 )
 
 LOGGER = logging.getLogger(__name__)
@@ -311,6 +311,4 @@ class CommandExtraIDs(Command):
             ids.setdefault(
                 'movie', {})[m.movie] = mov_ids
 
-        print(json.dumps(ids, sort_keys=True,
-                         indent=4, separators=(',', ': '),
-                         ensure_ascii=False))
+        return CommandOutput(data=ids)

@@ -24,13 +24,13 @@ from __future__ import (
     print_function,
 )
 import datetime
-import json
 import logging
 import platform
 import pytz
 
 from helper.utils import (
     Command,
+    CommandOutput,
 )
 
 if platform.system() == 'Windows':
@@ -112,6 +112,5 @@ class CommandDate(Command):
         ]
         if len(date) == 1:
             date = date[0]
-        print(json.dumps(date, sort_keys=True,
-                         indent=4, separators=(',', ': '),
-                         ensure_ascii=False))
+
+        return CommandOutput(data=date)

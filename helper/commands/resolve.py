@@ -40,6 +40,7 @@ from helper.commands.extraids import (
 )
 from helper.utils import (
     Command,
+    CommandOutput,
 )
 from helper.version import (
     __version__,
@@ -411,17 +412,6 @@ def tobyte(input):
 
 
 ##########################################################################
-# Class to return a fully computed result directly
-class ReturnResult(object):
-    def __init__(self, result):
-        self._result = result
-
-    @property
-    def result(self):
-        return self._result
-
-
-##########################################################################
 # Class to represent resolution exceptions
 class ResolveException(Exception):
     pass
@@ -467,6 +457,7 @@ class CommandResolve(Command):
         parser.add_argument(
             '--meta',
             help='The metadata provided by VLC',
+            required=True,
         )
         parser.add_argument(
             '--hash',
@@ -826,7 +817,7 @@ class CommandResolve(Command):
             # fake it!
             if trakt_result:
                 # Add as many episodes as needed to compute the information for
-                numbers = [trakt_result['episode']['number'],]
+                numbers = [trakt_result['episode']['number'], ]
                 while len(numbers) < len(parsed['episode']['episodes']):
                     numbers.append(numbers[-1] + 1)
 
@@ -892,7 +883,7 @@ class CommandResolve(Command):
                     media_list.append(media)
 
                 # Return the list we just build
-                return ReturnResult(media_list)
+                return CommandOutput(data=media_list)
 
             # Not found
             return
@@ -985,18 +976,14 @@ class CommandResolve(Command):
             should_insert_hash = True
             media = search_text()
 
-        # If still not found, print an empty list, and return
+        # If still not found, return an empty list
         if not media:
-            print('[]')
-            return
+            return CommandOutput(data=[])
 
-        # If the returned data is of type ReturnResult, just return the
+        # If the returned data is of type CommandOutput, just return the
         # result as it is
-        if isinstance(media, ReturnResult):
-            print(json.dumps(tobyte(media.result), sort_keys=True,
-                             indent=4, separators=(',', ': '),
-                             ensure_ascii=False))
-            return
+        if isinstance(media, CommandOutput):
+            return media
 
         # Split the imdb object so we can reuse the one that has been
         # instanciated during the research
@@ -1057,7 +1044,5 @@ class CommandResolve(Command):
                 m['base']['{}id'.format(k)] = v
 
         ######################################################################
-        # Print the JSON dump of the media list
-        print(json.dumps(tobyte(media_list), sort_keys=True,
-                         indent=4, separators=(',', ': '),
-                         ensure_ascii=False))
+        # Return the media list
+        return CommandOutput(data=media_list)
