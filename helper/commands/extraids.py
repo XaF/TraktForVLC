@@ -43,6 +43,14 @@ tmdbsimple.API_KEY = 'ad2d828c5ec2d46c06e1c38e181c125b'
 ##############################################################################
 # To resolve an episode ids
 def resolve_episode_ids(series, season, episode, year=None, imdbid=None):
+    LOGGER.debug(u'resolve_episode_ids: series={series}, season={season}, '
+                 u'episode={episode}, year={year}, imdbid={imdbid}'.format(
+                     series=series,
+                     season=season,
+                     episode=episode,
+                     year=year,
+                     imdbid=imdbid))
+
     # To store the IDs found
     ids = {}
 
@@ -67,7 +75,7 @@ def resolve_episode_ids(series, season, episode, year=None, imdbid=None):
             tvdb_series = None
             tvdb_search = tvdb.search(series)
             for s in tvdb_search:
-                if imdbid is None or s['imdbId'] != imdbid:
+                if imdbid is None or s.get('imdbId') != imdbid:
                     if not s['seriesName'].startswith(series):
                         LOGGER.debug('TVDB: Discarding result because of the '
                                      'name not beginning with the expected '
@@ -86,7 +94,8 @@ def resolve_episode_ids(series, season, episode, year=None, imdbid=None):
         tvdb_episode = tvdb_season[episode]
         ids['tvdb'] = tvdb_episode['id']
     except Exception as e:
-        LOGGER.debug(e)
+        LOGGER.debug('Exception raised of type {}: {}'.format(
+            type(e).__name__, e))
         LOGGER.warning(u'Unable to find series {}, season {}, '
                        u'episode {} on TheTVDB'.format(
                            series, season, episode))
