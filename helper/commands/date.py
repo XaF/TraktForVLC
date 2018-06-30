@@ -25,16 +25,12 @@ from __future__ import (
 )
 import datetime
 import logging
-import platform
 import pytz
 
 from helper.utils import (
     Command,
     CommandOutput,
 )
-
-if platform.system() == 'Windows':
-    import time
 
 LOGGER = logging.getLogger(__name__)
 
@@ -73,43 +69,50 @@ class CommandDate(Command):
         )
 
     def run(self, format, timezone, from_date, from_timezone, from_format):
+        # Set the default values
         if not format:
             format = ['%Y-%m-%dT%H:%M:%S.%fZ', ]
+        if not timezone:
+            timezone = 'UTC'
+        if not from_timezone:
+            from_timezone = 'UTC'
+
+        # Prepare the origin and destination timezones
+        from_tz = pytz.timezone(from_timezone)
+        to_tz = pytz.timezone(timezone)
+
+        # Parse the origin date
         if from_date:
             if from_format in ['%s', '%s.%f']:
                 from_date = float(from_date)
-                from_dt = datetime.datetime.fromtimestamp(from_date)
+                from_dt = datetime.datetime.fromtimestamp(from_date, from_tz)
             else:
-                from_dt = datetime.datetime.strptime(from_date, from_format)
-            if from_timezone:
-                from_tz = pytz.timezone(from_timezone)
-                from_dt = from_tz.localize(from_dt)
-            else:
-                from_dt = pytz.utc.localize(from_dt)
+                from_dt = from_tz.localize(
+                    datetime.datetime.strptime(from_date, from_format))
         else:
             from_dt = pytz.utc.localize(datetime.datetime.utcnow())
 
-        if timezone:
-            to_tz = pytz.timezone(timezone)
-        else:
-            to_tz = pytz.utc
-
+        # Convert from the original timezone to the destination timezone
         to_dt = from_dt.astimezone(to_tz)
 
+        # Python's datetime strftime does not support '%s' to compute
+        # the epoch, so we're doing it manually
+        epoch = (to_dt - datetime.datetime(
+            1970, 1, 1, tzinfo=pytz.utc)).total_seconds()
+
+        # Prepare the output message
         date = [
             {
                 'format': f,
                 'date': to_dt.strftime(
-                    # On Windows, '%s' is not supported, we thus need to
-                    # patch it using the time module
-                    f.replace('%s', str(int(time.time())))
-                    if platform.system() == 'Windows'
-                    else f
+                    f.replace('%s', str(int(epoch)))
                 ),
                 'timezone': to_tz.zone,
             }
             for f in format
         ]
+
+        # If there is only one result, return it as an object and not a list
         if len(date) == 1:
             date = date[0]
 
